@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบยืม-คืนอุปกรณ์ภายในองค์กร</title>
+  <!-- Google Fonts: Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons (CSS - ไม่ต้องรัน JS) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- Lucide Icons (jsDelivr CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+      background-color: #f8fafc;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    [x-cloak] { display: none !important; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col">
+
+  <!-- ================= TOP NAVIGATION BAR ================= -->
+  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        
+        <!-- Logo & Brand Title -->
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('catalog')">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary-700 to-primary-500 flex items-center justify-center text-white shadow-md shadow-primary-500/20">
+            <i class="fa-solid fa-boxes-stacked text-lg"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-bold text-slate-900 leading-tight" id="brandTitle">ระบบยืม-คืนอุปกรณ์</h1>
+            <p class="text-xs text-slate-500" id="brandSub">Equipment Borrowing & Return System</p>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="flex items-center space-x-1 sm:space-x-2">
+          <button id="navTabCatalog" onclick="switchTab('catalog')" class="px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-1.5 bg-primary-50 text-primary-700">
+            <i class="fa-solid fa-table-cells-large text-sm"></i>
+            <span>รายการอุปกรณ์</span>
+          </button>
+          
+          <button id="navTabAdmin" onclick="switchTab('admin')" class="px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-1.5 text-slate-600 hover:bg-slate-100">
+            <i class="fa-solid fa-shield-halved text-sm"></i>
+            <span>จัดการระบบ (Admin)</span>
+            <span id="adminBadge" class="hidden text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-bold">Admin</span>
+          </button>
+        </nav>
+
+        <!-- Current User Display -->
+        <div class="hidden md:flex items-center space-x-2 pl-3 border-l border-slate-200 text-xs text-slate-600">
+          <i class="fa-solid fa-circle-user text-sm text-slate-400"></i>
+          <span id="userEmailDisplay" class="font-medium max-w-[150px] truncate">กำลังโหลด...</span>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- 1. CATALOG TAB (สำหรับผู้ใช้งานทั่วไป) -->
+    <section id="sectionCatalog" class="space-y-6">
+      
+      <!-- Banner / Search & Filter Controls -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          
+          <!-- Search Input -->
+          <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 text-sm"></i>
+            <input 
+              type="text" 
+              id="searchInput" 
+              oninput="filterItems()" 
+              placeholder="ค้นหาชื่ออุปกรณ์, รหัสทรัพย์สิน, หรือ Serial No..." 
+              class="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+            >
+          </div>
+
+          <!-- Category & Status Filters -->
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Filter Available Only -->
+            <button 
+              id="filterAvailableBtn" 
+              onclick="toggleAvailableFilter()" 
+              class="px-3 py-2 border rounded-xl text-xs font-medium flex items-center space-x-1.5 transition border-slate-300 text-slate-700 hover:bg-slate-50"
+            >
+              <i class="fa-regular fa-circle-check text-emerald-600 text-sm"></i>
+              <span>เฉพาะพร้อมใช้งาน</span>
+            </button>
+
+            <!-- Reset Filter -->
+            <button 
+              onclick="resetCatalogFilter()" 
+              class="p-2 border border-slate-300 rounded-xl text-slate-500 hover:bg-slate-100 transition" 
+              title="ล้างตัวกรอง"
+            >
+              <i class="fa-solid fa-rotate-left text-sm"></i>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Category Pills -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 mt-4 custom-scrollbar text-xs" id="categoryPillsContainer">
+          <button onclick="selectCategory('ALL')" class="category-pill active px-3 py-1.5 rounded-full font-medium transition whitespace-nowrap bg-slate-900 text-white">
+            ทั้งหมด
+          </button>
+          <!-- Dynamic Category Pills inserted here -->
+        </div>
+      </div>
+
+      <!-- Item Stats / Result Counter -->
+      <div class="flex items-center justify-between text-xs text-slate-500 px-1">
+        <div>
+          แสดงผล <span id="itemCountDisplay" class="font-bold text-slate-800">0</span> รายการ
+        </div>
+        <div class="flex items-center space-x-4">
+          <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> <span>ว่าง</span></span>
+          <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> <span>ถูกยืม</span></span>
+          <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> <span>ซ่อมบำรุง</span></span>
+        </div>
+      </div>
+
+      <!-- Equipment Cards Grid -->
+      <div id="itemsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <!-- Loading Skeleton -->
+        <div class="col-span-full py-16 text-center text-slate-400">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-3"></div>
+          <p class="text-sm">กำลังเชื่อมต่อฐานข้อมูลและโหลดรายการอุปกรณ์...</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 2. ADMIN DASHBOARD TAB (สำหรับผู้ดูแลระบบ) -->
+    <section id="sectionAdmin" class="hidden space-y-6">
+      
+      <!-- Admin Sub Header & Stat Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+          <div class="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <i data-lucide="package" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 font-medium">อุปกรณ์ทั้งหมด</div>
+            <div class="text-xl font-bold text-slate-800" id="statTotalItems">0</div>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+          <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <i data-lucide="check-circle" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 font-medium">พร้อมใช้งาน (ว่าง)</div>
+            <div class="text-xl font-bold text-emerald-600" id="statAvailableItems">0</div>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+          <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+            <i data-lucide="clock" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 font-medium">กำลังถูกยืม (Active)</div>
+            <div class="text-xl font-bold text-amber-600" id="statBorrowedItems">0</div>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+          <div class="p-3 bg-rose-50 text-rose-600 rounded-xl">
+            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 font-medium">เลยกำหนดคืน (Overdue)</div>
+            <div class="text-xl font-bold text-rose-600" id="statOverdueItems">0</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Admin Tab Switcher -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 gap-3">
+          <!-- Sub Tabs -->
+          <div class="flex items-center space-x-2">
+            <button id="adminSubTxnBtn" onclick="switchAdminSubTab('txn')" class="px-3.5 py-2 text-sm font-medium rounded-lg bg-slate-900 text-white transition">
+              ติดตามรายการยืม-คืน
+            </button>
+            <button id="adminSubItemBtn" onclick="switchAdminSubTab('items')" class="px-3.5 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 transition">
+              จัดการรายการอุปกรณ์
+            </button>
+            <button id="adminSubCronBtn" onclick="switchAdminSubTab('cron')" class="px-3.5 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 transition">
+              ระบบแจ้งเตือน & Trigger
+            </button>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex items-center space-x-2">
+            <button onclick="refreshAdminData()" class="p-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition" title="รีเฟรชข้อมูล">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
+            <button id="addNewItemBtn" onclick="openItemModal(false)" class="hidden px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition flex items-center space-x-1.5 shadow-sm">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>เพิ่มอุปกรณ์ใหม่</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- SUB TAB 1: รายการยืม-คืน (Transactions) -->
+        <div id="adminTxnView" class="pt-4 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <!-- Filter Status -->
+            <div class="flex items-center space-x-2">
+              <span class="text-slate-500">กรองสถานะ:</span>
+              <select id="txnStatusFilter" onchange="filterAdminTxn()" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:ring-1 focus:ring-primary-500">
+                <option value="ALL">ทั้งหมด</option>
+                <option value="Active">กำลังยืม (Active)</option>
+                <option value="Overdue">เลยกำหนดคืน (Overdue)</option>
+                <option value="Returned">ส่งคืนแล้ว (Returned)</option>
+              </select>
+            </div>
+            <!-- Search -->
+            <input 
+              type="text" 
+              id="txnSearchInput" 
+              oninput="filterAdminTxn()" 
+              placeholder="ค้นหาชื่อผู้ยืม, รหัสธุรกรรม, หรืออุปกรณ์..." 
+              class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs w-full sm:w-64 focus:ring-1 focus:ring-primary-500"
+            >
+          </div>
+
+          <!-- Transactions Table -->
+          <div class="overflow-x-auto border border-slate-200 rounded-xl custom-scrollbar">
+            <table class="w-full text-left text-xs text-slate-600">
+              <thead class="bg-slate-50 text-slate-700 font-semibold uppercase tracking-wider border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-3">Transaction ID</th>
+                  <th class="py-3 px-3">อุปกรณ์</th>
+                  <th class="py-3 px-3">ผู้ยืม / แผนก</th>
+                  <th class="py-3 px-3">ประเภท</th>
+                  <th class="py-3 px-3">วันที่ยืม</th>
+                  <th class="py-3 px-3">กำหนดส่งคืน</th>
+                  <th class="py-3 px-3">สถานะ</th>
+                  <th class="py-3 px-3 text-center">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="txnTableBody" class="divide-y divide-slate-200 bg-white">
+                <tr>
+                  <td colspan="8" class="text-center py-8 text-slate-400">กำลังโหลดประวัติการยืม-คืน...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SUB TAB 2: จัดการอุปกรณ์ (Equipment Management) -->
+        <div id="adminItemView" class="hidden pt-4 space-y-4">
+          <div class="overflow-x-auto border border-slate-200 rounded-xl custom-scrollbar">
+            <table class="w-full text-left text-xs text-slate-600">
+              <thead class="bg-slate-50 text-slate-700 font-semibold uppercase tracking-wider border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-3">รูปภาพ</th>
+                  <th class="py-3 px-3">รหัสอุปกรณ์</th>
+                  <th class="py-3 px-3">ชื่ออุปกรณ์</th>
+                  <th class="py-3 px-3">หมวดหมู่</th>
+                  <th class="py-3 px-3">Serial No</th>
+                  <th class="py-3 px-3">สถานะ</th>
+                  <th class="py-3 px-3">หมายเหตุ</th>
+                  <th class="py-3 px-3 text-center">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="adminItemTableBody" class="divide-y divide-slate-200 bg-white">
+                <!-- Dynamically Populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SUB TAB 3: ระบบแจ้งเตือน & Trigger (Cron) -->
+        <div id="adminCronView" class="hidden pt-4 space-y-6">
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-5">
+            <h3 class="font-bold text-sm text-slate-800 mb-2 flex items-center space-x-2">
+              <i data-lucide="bell-ring" class="w-4 h-4 text-primary-600"></i>
+              <span>ระบบตรวจสอบและส่งอีเมลแจ้งเตือนอัตโนมัติ (Automated Daily Trigger)</span>
+            </h3>
+            <p class="text-xs text-slate-600 leading-relaxed mb-4">
+              ระบบสามารถส่งแจ้งเตือนผ่าน Gmail ไปยังผู้ยืมล่วงหน้า 1 วันก่อนถึงกำหนดส่งคืน และส่งแจ้งเตือนด่วนกรณีเลยกำหนดคืน พร้อมทั้งสำเนา (CC) ถึงผู้ดูแลระบบที่ตั้งค่าไว้ในชีต <code>Settings</code> ทุกเช้าเวลา 08:00 - 09:00 น.
+            </p>
+            
+            <div class="flex flex-wrap gap-3">
+              <button onclick="triggerRunReminders()" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-medium rounded-lg transition flex items-center space-x-1.5 shadow-sm">
+                <i data-lucide="play" class="w-4 h-4"></i>
+                <span>ทดสอบรันการตรวจสอบและส่งแจ้งเตือนตอนนี้</span>
+              </button>
+
+              <button onclick="triggerSetupTrigger()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition flex items-center space-x-1.5 shadow-sm">
+                <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+                <span>ติดตั้ง Time-driven Trigger (รันทุกวัน 08:00 น.)</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="border border-slate-200 rounded-xl p-5 bg-white">
+            <h4 class="font-semibold text-xs text-slate-700 mb-3">การตั้งค่าระบบปัจจุบัน (ดึงจากชีต Settings)</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs" id="settingsDisplayGrid">
+              <!-- Dynamically Populated Settings -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ================= BORROW MODAL (ฟอร์มขอยืมอุปกรณ์) ================= -->
+  <div id="borrowModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 flex flex-col">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
+        <div class="flex items-center space-x-2">
+          <div class="p-2 bg-primary-50 text-primary-600 rounded-lg">
+            <i data-lucide="file-text" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 text-base">แบบฟอร์มขอยืมอุปกรณ์</h3>
+            <p class="text-xs text-slate-500">กรุณากรอกข้อมูลให้ครบถ้วนเพื่อทำรายการ</p>
+          </div>
+        </div>
+        <button onclick="closeBorrowModal()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body Form -->
+      <form id="borrowForm" onsubmit="handleBorrowSubmit(event)" class="p-6 space-y-4 text-xs">
+        
+        <!-- Selected Item Card Summary -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center space-x-3">
+          <img id="modalItemImg" src="" alt="item" class="w-14 h-14 rounded-lg object-cover bg-white border border-slate-200 flex-shrink-0">
+          <div class="flex-1 min-w-0">
+            <span id="modalItemCategory" class="text-[10px] font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full inline-block mb-1">หมวดหมู่</span>
+            <h4 id="modalItemName" class="font-bold text-slate-800 text-sm truncate">ชื่ออุปกรณ์</h4>
+            <p id="modalItemSerial" class="text-slate-500 text-[11px] truncate">Serial No: -</p>
+          </div>
+          <input type="hidden" id="borrowItemId" name="itemId">
+        </div>
+
+        <!-- Borrower Name -->
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">ชื่อ - นามสกุล ผู้ขอยืม <span class="text-rose-500">*</span></label>
+          <input type="text" id="borrowerName" name="borrowerName" required placeholder="เช่น สมชาย ใจดี" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none">
+        </div>
+
+        <!-- Borrower Email -->
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">อีเมลผู้ยืม (รับใบยืนยันและการแจ้งเตือน) <span class="text-rose-500">*</span></label>
+          <input type="email" id="borrowerEmail" name="borrowerEmail" required placeholder="user@company.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none">
+        </div>
+
+        <!-- Department -->
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">แผนก / ฝ่ายงาน <span class="text-rose-500">*</span></label>
+          <select id="borrowerDept" name="department" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white">
+            <option value="">-- เลือกแผนก/ฝ่าย --</option>
+            <option value="01 GA">01 GA</option>
+            <option value="02 AFP">02 AFP</option>
+            <option value="03 IASA">03 IASA</option>
+            <option value="04 QS">04 QS</option>
+            <option value="05 NMCO">05 NMCO</option>
+            <option value="06 HD">06 HD</option>
+            <option value="07 PITI">07 PITI</option>
+            <option value="08 TechSpin">08 TechSpin</option>
+            <option value="09 PUBSEC">09 PUBSEC</option>
+            <option value="10 TechUp">10 TechUp</option>
+            <option value="11 EIC">11 EIC</option>
+            <option value="12 ISI">12 ISI</option>
+            <option value="13 CRM">13 CRM</option>
+            <option value="14 IFU">14 IFU</option>
+            <option value="15 IQI">15 IQI</option>
+            <option value="16 LES">16 LES</option>
+            <option value="17 Foodfabr">17 Foodfabr</option>
+            <option value="18 CC">18 CC</option>
+            <option value="19 IMO">19 IMO</option>
+            <option value="20 SIT">20 SIT</option>
+            <option value="21 MI">21 MI</option>
+            <option value="22 LINC">22 LINC</option>
+            <option value="อื่น ๆ">อื่น ๆ</option>
+          </select>
+        </div>
+
+        <!-- Borrow Type -->
+        <div>
+          <label class="block font-medium text-slate-700 mb-1.5">วัตถุประสงค์ / ประเภทการยืม <span class="text-rose-500">*</span></label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex items-center space-x-2 border border-slate-300 p-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition">
+              <input type="radio" name="borrowType" value="ยืมใช้ในสำนักงาน" checked class="text-primary-600 focus:ring-primary-500">
+              <span class="text-slate-700">ใช้ในสำนักงาน</span>
+            </label>
+            <label class="flex items-center space-x-2 border border-slate-300 p-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition">
+              <input type="radio" name="borrowType" value="ยืมออกนอกสถานที่" class="text-primary-600 focus:ring-primary-500">
+              <span class="text-slate-700">ออกนอกสถานที่</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Date Times -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">วันที่และเวลายืม <span class="text-rose-500">*</span></label>
+            <input type="datetime-local" id="borrowDate" name="borrowDate" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">กำหนดส่งคืน (Due Date) <span class="text-rose-500">*</span></label>
+            <input type="datetime-local" id="expectedReturnDate" name="expectedReturnDate" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Notes / Purpose -->
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">เหตุผลหรือรายละเอียดเพิ่มเติม</label>
+          <textarea id="borrowNotes" name="userNotes" rows="2" placeholder="เช่น ใช้สำหรับการจัดสัมมนาประจำปี ณ ห้องประชุมใหญ่" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none"></textarea>
+        </div>
+
+        <!-- Terms Agreement -->
+        <div class="p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+          <strong>เงื่อนไข:</strong> ผู้ยืมตกลงจะดูแลรักษาอุปกรณ์ให้อยู่ในสภาพปกติสมบูรณ์ และส่งคืนภายในกำหนดเวลา หากเกิดความเสียหายจากการประมาทเลินเล่อ ผู้ยืมยินดีรับผิดชอบตามระเบียบองค์กร
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div class="pt-3 border-t border-slate-200 flex items-center justify-end space-x-2">
+          <button type="button" onclick="closeBorrowModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-100 transition">
+            ยกเลิก
+          </button>
+          <button type="submit" id="btnSubmitBorrow" class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition flex items-center space-x-2 shadow-sm">
+            <span id="btnSubmitText">ยืนยันการขอยืม</span>
+            <div id="btnSubmitSpinner" class="hidden animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+          </button>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ================= ITEM ADD / EDIT MODAL (สำหรับ Admin) ================= -->
+  <div id="itemModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 flex flex-col">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <h3 class="font-bold text-slate-800 text-sm" id="itemModalTitle">เพิ่มอุปกรณ์ใหม่</h3>
+        <button onclick="closeItemModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="itemForm" onsubmit="handleItemFormSubmit(event)" class="p-6 space-y-3 text-xs">
+        <input type="hidden" id="editItemIsEdit" value="false">
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">รหัสอุปกรณ์ (Item ID)</label>
+          <input type="text" id="editItemId" placeholder="เว้นว่างไว้เพื่อรันอัตโนมัติ เช่น IT-003" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+        </div>
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">ชื่ออุปกรณ์ <span class="text-rose-500">*</span></label>
+          <input type="text" id="editItemName" required placeholder="เช่น iPad Pro 11-inch" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">หมวดหมู่ <span class="text-rose-500">*</span></label>
+            <input type="text" id="editItemCategory" required placeholder="เช่น แท็บเล็ต" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-medium text-slate-700 mb-1">สถานะ</label>
+            <select id="editItemStatus" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white">
+              <option value="Available">Available (พร้อมยืม)</option>
+              <option value="Maintenance">Maintenance (ซ่อมบำรุง)</option>
+              <option value="Borrowed">Borrowed (ถูกยืม)</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Serial Number</label>
+          <input type="text" id="editItemSerial" placeholder="เช่น SN-IPAD-9912" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+        </div>
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">URL รูปภาพ</label>
+          <input type="url" id="editItemImage" placeholder="https://..." class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+        </div>
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">หมายเหตุ / สเปก</label>
+          <textarea id="editItemRemarks" rows="2" placeholder="รายละเอียด อุปกรณ์เสริมที่มาพร้อมกัน" class="w-full px-3 py-2 border border-slate-300 rounded-lg"></textarea>
+        </div>
+        <div class="pt-3 border-t flex justify-end space-x-2">
+          <button type="button" onclick="closeItemModal()" class="px-4 py-2 border rounded-lg text-slate-600">ยกเลิก</button>
+          <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg">บันทึกข้อมูล</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= RETURN CONFIRMATION MODAL (สำหรับ Admin) ================= -->
+  <div id="returnModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-xs">
+      <div class="text-center mb-4">
+        <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
+          <i data-lucide="corner-down-left" class="w-6 h-6"></i>
+        </div>
+        <h3 class="font-bold text-slate-800 text-base">บันทึกการส่งคืนอุปกรณ์</h3>
+        <p class="text-slate-500 mt-1" id="returnModalSub">รหัสรายการ: TXN-XXXX</p>
+      </div>
+      <input type="hidden" id="returnTxnId">
+      <div class="mb-4">
+        <label class="block font-medium text-slate-700 mb-1">บันทึกเพิ่มเติมจากเจ้าหน้าที่ (อุปกรณ์สมบูรณ์หรือไม่):</label>
+        <textarea id="returnAdminNotes" rows="2" placeholder="เช่น ตรวจสอบแล้ว อุปกรณ์และสายชาร์จครบถ้วน สภาพปกติ" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-primary-500"></textarea>
+      </div>
+      <div class="flex space-x-2">
+        <button type="button" onclick="closeReturnModal()" class="flex-1 py-2 border border-slate-300 rounded-lg text-slate-600">ยกเลิก</button>
+        <button type="button" onclick="confirmReturnAction()" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg">ยืนยันรับคืน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="bg-white border-t border-slate-200 py-4 mt-auto text-xs text-slate-500 text-center">
+    <div class="max-w-7xl mx-auto px-4">
+      <p id="footerContact">ระบบบริหารจัดการและยืม-คืนอุปกรณ์ส่วนกลาง &copy; 2026</p>
+    </div>
+  </footer>
+
+  <!-- ข้อมูล Server-side Preload ฝากไว้ใน tag json ป้องกัน SyntaxError 100% -->
+  <script id="serverDataScript" type="application/json"><?!= typeof serverData !== 'undefined' ? serverData : '{}' ?></script>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    // System State
+    let allItems = [];
+    let filteredItems = [];
+    let selectedCategory = 'ALL';
+    let availableOnly = false;
+    let currentUser = { email: '', isAdmin: false };
+    let systemSettings = {};
+    let allTransactions = [];
+
+    // Helper ป้องกันข้อผิดพลาดกรณี CDN Icon โหลดช้า
+    function renderIcons() {
+      try {
+        if (window.lucide && typeof lucide.createIcons === 'function') {
+          lucide.createIcons();
+        }
+      } catch (e) {
+        console.warn('Lucide icon warning:', e);
+      }
+    }
+
+    // Document Ready
+    window.addEventListener('DOMContentLoaded', () => {
+      try { setDefaultDateTimes(); } catch (e) { console.error(e); }
+      renderIcons();
+
+      // ตรวจสอบข้อมูล Preload จาก Tag JSON ที่ปลอดภัย
+      var preloaded = null;
+      try {
+        var jsonTag = document.getElementById('serverDataScript');
+        if (jsonTag && jsonTag.textContent.trim()) {
+          preloaded = JSON.parse(jsonTag.textContent.trim());
+        }
+      } catch (e) {
+        console.log('No preloaded server data:', e);
+      }
+
+      if (preloaded && preloaded.items && preloaded.items.length > 0) {
+        console.log('Loaded from server preload successfully:', preloaded.items.length, 'items');
+        applyInitialData(preloaded);
+      } else {
+        console.log('Calling google.script.run.getInitialData()...');
+        loadInitialData();
+      }
+    });
+
+    /**
+     * นำข้อมูลมาแสดงผลบนหน้าจอ
+     */
+    function applyInitialData(response) {
+      allItems = response.items || [];
+      currentUser = {
+        email: response.currentUserEmail || '',
+        isAdmin: response.isAdmin || false
+      };
+      systemSettings = response.settings || {};
+
+      // Update UI
+      if (currentUser.email) {
+        document.getElementById('userEmailDisplay').textContent = currentUser.email;
+        document.getElementById('borrowerEmail').value = currentUser.email;
+      } else {
+        document.getElementById('userEmailDisplay').textContent = 'Guest User';
+      }
+
+      if (currentUser.isAdmin) {
+        document.getElementById('adminBadge').classList.remove('hidden');
+      }
+
+      if (systemSettings.organizationName) {
+        document.getElementById('brandTitle').textContent = systemSettings.organizationName;
+      }
+      if (systemSettings.contactInfo) {
+        document.getElementById('footerContact').textContent = systemSettings.contactInfo;
+      }
+
+      renderCategoryPills(response.categories || []);
+      filterItems();
+      renderIcons();
+    }
+
+    /**
+     * ตั้งค่าวันที่ปัจจุบันเป็น Default
+     */
+    function setDefaultDateTimes() {
+      const now = new Date();
+      // ชดเชย Timezone ท้องถิ่นสำหรับ input datetime-local
+      const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      
+      // กำหนดส่งคืนเริ่มต้น: อีก 2 วันข้างหน้า เวลา 17:00
+      const tomorrow = new Date(now.getTime() + (2 * 24 * 60 * 60 * 1000));
+      tomorrow.setHours(17, 0, 0, 0);
+      const localDue = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+      document.getElementById('borrowDate').value = localNow;
+      document.getElementById('borrowDate').min = localNow;
+      document.getElementById('expectedReturnDate').value = localDue;
+      document.getElementById('expectedReturnDate').min = localNow;
+    }
+
+    /**
+     * โหลดข้อมูลเริ่มต้นผ่าน Google Apps Script API (กรณีไม่มี Preload)
+     */
+    function loadInitialData() {
+      if (typeof google === 'undefined' || !google.script) {
+        console.warn('Running outside Google Apps Script environment. Using mock data.');
+        simulateMockData();
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(response => {
+          applyInitialData(response);
+        })
+        .withFailureHandler(err => {
+          console.error('getInitialData error:', err);
+          document.getElementById('userEmailDisplay').textContent = 'Error';
+          document.getElementById('itemsGrid').innerHTML = `
+            <div class="col-span-full py-10 px-6 text-center bg-rose-50 rounded-2xl border border-rose-200 text-rose-700">
+              <i data-lucide="alert-octagon" class="w-10 h-10 mx-auto mb-2 text-rose-500"></i>
+              <h3 class="font-bold text-base mb-1">ไม่สามารถโหลดข้อมูลจากชีตได้</h3>
+              <p class="text-xs text-rose-600 mb-4 max-w-md mx-auto leading-relaxed">
+                ${err.message || 'กรุณาตรวจสอบว่าได้กดยืนยันสิทธิ์ (Authorization) ในหน้า Apps Script แล้วหรือไม่'}
+              </p>
+              <button onclick="loadInitialData()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium transition shadow-sm">
+                ลองใหม่อีกครั้ง (Retry)
+              </button>
+            </div>
+          `;
+          renderIcons();
+        })
+        .getInitialData();
+    }
+
+    /**
+     * จำลองข้อมูลกรณีทดสอบบน Local File
+     */
+    function simulateMockData() {
+      allItems = [
+        { itemId: 'IT-001', itemName: 'MacBook Pro 14" (M3 Pro)', category: 'คอมพิวเตอร์และโน้ตบุ๊ก', status: 'Available', serialNo: 'SN-MBP14-202401', imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80', remarks: 'RAM 18GB อุปกรณ์พร้อม Adapter' },
+        { itemId: 'AV-001', itemName: 'Sony Alpha 7 IV (Body)', category: 'กล้องและสตูดิโอ', status: 'Borrowed', serialNo: 'SN-SONY-A7M4-09', imageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80', remarks: 'แบตเตอรี่ 2 ก้อน' },
+        { itemId: 'PR-001', itemName: 'Epson EB-FH52 Full HD Projector', category: 'โปรเจกเตอร์และจอภาพ', status: 'Available', serialNo: 'SN-EPSON-FH52-12', imageUrl: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=600&q=80', remarks: 'ความสว่าง 4000 Lumens' },
+        { itemId: 'TL-001', itemName: 'Network Toolkit ช่างเครือข่าย', category: 'อุปกรณ์ช่าง', status: 'Maintenance', serialNo: 'SN-NET-TL-01', imageUrl: 'https://images.unsplash.com/photo-1581244277943-fe4a9c777189?auto=format&fit=crop&w=600&q=80', remarks: 'รอจัดซื้อหัวต่อใหม่' }
+      ];
+      currentUser = { email: 'admin@company.com', isAdmin: true };
+      systemSettings = { organizationName: 'Smart Equipment Hub', reminderDaysBefore: 1, contactInfo: 'IT Support Call Ext. 8888' };
+      document.getElementById('userEmailDisplay').textContent = currentUser.email;
+      document.getElementById('adminBadge').classList.remove('hidden');
+      renderCategoryPills(['คอมพิวเตอร์และโน้ตบุ๊ก', 'กล้องและสตูดิโอ', 'โปรเจกเตอร์และจอภาพ', 'อุปกรณ์ช่าง']);
+      filterItems();
+      renderIcons();
+    }
+
+    /**
+     * แสดงแท็กหมวดหมู่ (Category Pills)
+     */
+    function renderCategoryPills(categories) {
+      const container = document.getElementById('categoryPillsContainer');
+      // เก็บปุ่ม ALL ไว้
+      container.innerHTML = `
+        <button onclick="selectCategory('ALL')" id="pill-ALL" class="category-pill active px-3.5 py-1.5 rounded-full font-medium transition whitespace-nowrap bg-slate-900 text-white">
+          ทั้งหมด
+        </button>
+      `;
+
+      categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.id = `pill-${encodeURIComponent(cat)}`;
+        btn.className = 'category-pill px-3.5 py-1.5 rounded-full font-medium transition whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200';
+        btn.textContent = cat;
+        btn.onclick = () => selectCategory(cat);
+        container.appendChild(btn);
+      });
+    }
+
+    function selectCategory(cat) {
+      selectedCategory = cat;
+      document.querySelectorAll('.category-pill').forEach(el => {
+        el.className = 'category-pill px-3.5 py-1.5 rounded-full font-medium transition whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200';
+      });
+      const activeEl = document.getElementById(`pill-${encodeURIComponent(cat)}`) || document.getElementById('pill-ALL');
+      if (activeEl) {
+        activeEl.className = 'category-pill active px-3.5 py-1.5 rounded-full font-medium transition whitespace-nowrap bg-slate-900 text-white';
+      }
+      filterItems();
+    }
+
+    function toggleAvailableFilter() {
+      availableOnly = !availableOnly;
+      const btn = document.getElementById('filterAvailableBtn');
+      if (availableOnly) {
+        btn.className = 'px-3 py-2 border rounded-xl text-xs font-medium flex items-center space-x-1.5 transition border-emerald-500 bg-emerald-50 text-emerald-800';
+      } else {
+        btn.className = 'px-3 py-2 border rounded-xl text-xs font-medium flex items-center space-x-1.5 transition border-slate-300 text-slate-700 hover:bg-slate-50';
+      }
+      filterItems();
+    }
+
+    function resetCatalogFilter() {
+      document.getElementById('searchInput').value = '';
+      availableOnly = false;
+      document.getElementById('filterAvailableBtn').className = 'px-3 py-2 border rounded-xl text-xs font-medium flex items-center space-x-1.5 transition border-slate-300 text-slate-700 hover:bg-slate-50';
+      selectCategory('ALL');
+    }
+
+    /**
+     * กรองและแสดงการ์ดอุปกรณ์
+     */
+    function filterItems() {
+      const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+      
+      filteredItems = allItems.filter(item => {
+        const matchCategory = selectedCategory === 'ALL' || item.category === selectedCategory;
+        const matchAvailable = !availableOnly || item.status === 'Available';
+        const matchSearch = !q || 
+          item.itemName.toLowerCase().includes(q) || 
+          item.itemId.toLowerCase().includes(q) || 
+          (item.serialNo && item.serialNo.toLowerCase().includes(q)) ||
+          (item.category && item.category.toLowerCase().includes(q));
+
+        return matchCategory && matchAvailable && matchSearch;
+      });
+
+      document.getElementById('itemCountDisplay').textContent = filteredItems.length;
+      renderItemsGrid(filteredItems);
+    }
+
+    function renderItemsGrid(items) {
+      const grid = document.getElementById('itemsGrid');
+      if (items.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-16 text-center text-slate-400">
+            <i data-lucide="package-search" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+            <p class="text-sm font-medium">ไม่พบอุปกรณ์ที่ตรงกับเงื่อนไขการค้นหา</p>
+            <p class="text-xs mt-1">ลองเปลี่ยนคำค้นหา หรือกดล้างตัวกรอง</p>
+          </div>
+        `;
+        renderIcons();
+        return;
+      }
+
+      grid.innerHTML = items.map(item => {
+        const isAvailable = item.status === 'Available';
+        const isBorrowed = item.status === 'Borrowed';
+        
+        let statusBadge = '';
+        if (isAvailable) {
+          statusBadge = `<span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span>พร้อมใช้งาน</span></span>`;
+        } else if (isBorrowed) {
+          statusBadge = `<span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span>กำลังถูกยืม</span></span>`;
+        } else {
+          statusBadge = `<span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span><span>ซ่อมบำรุง</span></span>`;
+        }
+
+        const fallbackImg = `https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?auto=format&fit=crop&w=600&q=80`;
+        const itemImg = item.imageUrl ? item.imageUrl : fallbackImg;
+
+        return `
+          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group">
+            <!-- Card Image -->
+            <div class="relative h-44 bg-slate-100 overflow-hidden">
+              <img 
+                src="${itemImg}" 
+                alt="${item.itemName}" 
+                class="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
+                onerror="this.src='${fallbackImg}'"
+              >
+              <div class="absolute top-3 left-3">
+                <span class="text-[10px] font-semibold bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-slate-700 shadow-sm border border-slate-200">
+                  ${item.itemId}
+                </span>
+              </div>
+              <div class="absolute top-3 right-3">
+                ${statusBadge}
+              </div>
+            </div>
+
+            <!-- Card Content -->
+            <div class="p-4 flex-1 flex flex-col justify-between">
+              <div>
+                <p class="text-[11px] font-medium text-primary-600 mb-1">${item.category}</p>
+                <h3 class="font-bold text-slate-800 text-sm line-clamp-1 mb-1.5" title="${item.itemName}">
+                  ${item.itemName}
+                </h3>
+                <p class="text-[11px] text-slate-500 flex items-center space-x-1 mb-2">
+                  <i data-lucide="hash" class="w-3.5 h-3.5"></i>
+                  <span>Serial: ${item.serialNo || 'ไม่มีระบุ'}</span>
+                </p>
+                ${item.remarks ? `<p class="text-[11px] text-slate-500 line-clamp-2 bg-slate-50 p-2 rounded-lg border border-slate-100 mb-3">${item.remarks}</p>` : ''}
+              </div>
+
+              <!-- Button Action -->
+              <div class="pt-3 border-t border-slate-100 mt-2">
+                ${isAvailable ? `
+                  <button 
+                    onclick="openBorrowModal('${item.itemId}')" 
+                    class="w-full py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-medium transition flex items-center justify-center space-x-1.5 shadow-sm shadow-primary-500/20 active:scale-95"
+                  >
+                    <i data-lucide="hand" class="w-4 h-4"></i>
+                    <span>ขอยืมอุปกรณ์นี้</span>
+                  </button>
+                ` : `
+                  <button 
+                    disabled 
+                    class="w-full py-2 px-3 bg-slate-100 text-slate-400 rounded-xl text-xs font-medium cursor-not-allowed flex items-center justify-center space-x-1.5"
+                  >
+                    <i data-lucide="lock" class="w-4 h-4"></i>
+                    <span>${isBorrowed ? 'อุปกรณ์ไม่ว่าง (กำลังถูกยืม)' : 'งดให้บริการ (ซ่อมบำรุง)'}</span>
+                  </button>
+                `}
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      renderIcons();
+    }
+
+    /**
+     * เปิด Modal ขอยืมอุปกรณ์
+     */
+    function openBorrowModal(itemId) {
+      const item = allItems.find(i => i.itemId === itemId);
+      if (!item) return;
+
+      document.getElementById('borrowItemId').value = item.itemId;
+      document.getElementById('modalItemName').textContent = item.itemName;
+      document.getElementById('modalItemCategory').textContent = item.category;
+      document.getElementById('modalItemSerial').textContent = `Serial No: ${item.serialNo || '-'}`;
+      document.getElementById('modalItemImg').src = item.imageUrl || 'https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?auto=format&fit=crop&w=600&q=80';
+
+      setDefaultDateTimes();
+      document.getElementById('borrowModal').classList.remove('hidden');
+    }
+
+    function closeBorrowModal() {
+      document.getElementById('borrowModal').classList.add('hidden');
+    }
+
+    /**
+     * ส่งคำขอยืมอุปกรณ์ (Borrow Form Submit)
+     */
+    function handleBorrowSubmit(e) {
+      e.preventDefault();
+
+      const form = document.getElementById('borrowForm');
+      const formData = {
+        itemId: document.getElementById('borrowItemId').value,
+        borrowerName: document.getElementById('borrowerName').value.trim(),
+        borrowerEmail: document.getElementById('borrowerEmail').value.trim(),
+        department: document.getElementById('borrowerDept').value,
+        borrowType: form.querySelector('input[name="borrowType"]:checked').value,
+        borrowDate: document.getElementById('borrowDate').value,
+        expectedReturnDate: document.getElementById('expectedReturnDate').value,
+        userNotes: document.getElementById('borrowNotes').value.trim()
+      };
+
+      // Validation
+      const bDate = new Date(formData.borrowDate);
+      const rDate = new Date(formData.expectedReturnDate);
+      if (rDate <= bDate) {
+        Swal.fire('ข้อผิดพลาด', 'กำหนดวันส่งคืนต้องเป็นวันและเวลาหลังจากวันที่ยืมเสมอ', 'warning');
+        return;
+      }
+
+      // ปรับปุ่มเป็นสถานะกำลังโหลด
+      const btnSubmit = document.getElementById('btnSubmitBorrow');
+      const btnText = document.getElementById('btnSubmitText');
+      const btnSpinner = document.getElementById('btnSubmitSpinner');
+
+      btnSubmit.disabled = true;
+      btnText.textContent = 'กำลังบันทึกข้อมูล...';
+      btnSpinner.classList.remove('hidden');
+
+      if (typeof google === 'undefined' || !google.script) {
+        // Mock success
+        setTimeout(() => {
+          btnSubmit.disabled = false;
+          btnText.textContent = 'ยืนยันการขอยืม';
+          btnSpinner.classList.add('hidden');
+          closeBorrowModal();
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'ทำรายการสำเร็จ!',
+            html: `
+              <p class="text-sm">รหัสธุรกรรมของคุณคือ: <strong class="text-primary-600 font-mono">TXN-MOCK-9999</strong></p>
+              <p class="text-xs text-slate-500 mt-2">ระบบได้ส่งอีเมลยืนยันไปยัง <strong>${formData.borrowerEmail}</strong> เรียบร้อยแล้ว</p>
+            `,
+            confirmButtonText: 'ตกลง'
+          });
+
+          // เปลี่ยนสถานะใน Mock
+          const it = allItems.find(x => x.itemId === formData.itemId);
+          if (it) it.status = 'Borrowed';
+          filterItems();
+        }, 1200);
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(res => {
+          btnSubmit.disabled = false;
+          btnText.textContent = 'ยืนยันการขอยืม';
+          btnSpinner.classList.add('hidden');
+
+          if (res.success) {
+            closeBorrowModal();
+            Swal.fire({
+              icon: 'success',
+              title: 'ขอยืมสำเร็จเรียบร้อย!',
+              html: `
+                <div class="space-y-3 text-left bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+                  <div><strong>เลขอ้างอิง Transaction ID:</strong> <span class="font-mono text-primary-600 font-bold">${res.transactionId}</span></div>
+                  <div><strong>ผู้ยืม:</strong> ${formData.borrowerName} (${formData.department})</div>
+                  <div><strong>กำหนดส่งคืน:</strong> ${formData.expectedReturnDate}</div>
+                </div>
+                <p class="text-xs text-slate-500 mt-3">ระบบได้ส่งอีเมลยืนยันรายการ พร้อมคำแนะนำการใช้งานไปยัง <strong class="text-slate-800">${formData.borrowerEmail}</strong> เรียบร้อยแล้ว</p>
+              `,
+              confirmButtonText: 'รับทราบและปิดหน้านี้',
+              confirmButtonColor: '#2563eb'
+            });
+
+            // อัปเดตรายการในหน้าจอ
+            const it = allItems.find(x => x.itemId === formData.itemId);
+            if (it) it.status = 'Borrowed';
+            filterItems();
+          } else {
+            Swal.fire('ไม่สามารถทำรายการได้', res.message, 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          btnSubmit.disabled = false;
+          btnText.textContent = 'ยืนยันการขอยืม';
+          btnSpinner.classList.add('hidden');
+          Swal.fire('ข้อผิดพลาดระบบ', err.message, 'error');
+        })
+        .submitBorrowRequest(formData);
+    }
+
+    /**
+     * เปลี่ยนแท็บหลัก (Catalog / Admin)
+     */
+    function switchTab(tab) {
+      const secCatalog = document.getElementById('sectionCatalog');
+      const secAdmin = document.getElementById('sectionAdmin');
+      const tabCatalog = document.getElementById('navTabCatalog');
+      const tabAdmin = document.getElementById('navTabAdmin');
+
+      if (tab === 'catalog') {
+        secCatalog.classList.remove('hidden');
+        secAdmin.classList.add('hidden');
+        tabCatalog.className = 'px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-1.5 bg-primary-50 text-primary-700';
+        tabAdmin.className = 'px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-1.5 text-slate-600 hover:bg-slate-100';
+      } else {
+        secCatalog.classList.add('hidden');
+        secAdmin.classList.remove('hidden');
+        tabCatalog.className = 'px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-1.5 text-slate-600 hover:bg-slate-100';
+        tabAdmin.className = 'px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-1.5 bg-slate-900 text-white';
+        refreshAdminData();
+      }
+      renderIcons();
+    }
+
+    /**
+     * เปลี่ยน Sub Tab ในหน้า Admin (Txn / Items / Cron)
+     */
+    function switchAdminSubTab(sub) {
+      const vTxn = document.getElementById('adminTxnView');
+      const vItems = document.getElementById('adminItemView');
+      const vCron = document.getElementById('adminCronView');
+      const bTxn = document.getElementById('adminSubTxnBtn');
+      const bItems = document.getElementById('adminSubItemBtn');
+      const bCron = document.getElementById('adminSubCronBtn');
+      const addBtn = document.getElementById('addNewItemBtn');
+
+      [vTxn, vItems, vCron].forEach(v => v.classList.add('hidden'));
+      [bTxn, bItems, bCron].forEach(b => {
+        b.className = 'px-3.5 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 transition';
+      });
+
+      if (sub === 'txn') {
+        vTxn.classList.remove('hidden');
+        bTxn.className = 'px-3.5 py-2 text-sm font-medium rounded-lg bg-slate-900 text-white transition';
+        addBtn.classList.add('hidden');
+      } else if (sub === 'items') {
+        vItems.classList.remove('hidden');
+        bItems.className = 'px-3.5 py-2 text-sm font-medium rounded-lg bg-slate-900 text-white transition';
+        addBtn.classList.remove('hidden');
+        renderAdminItemsTable();
+      } else {
+        vCron.classList.remove('hidden');
+        bCron.className = 'px-3.5 py-2 text-sm font-medium rounded-lg bg-slate-900 text-white transition';
+        addBtn.classList.add('hidden');
+        renderAdminSettings();
+      }
+      renderIcons();
+    }
+
+    /**
+     * ดึงข้อมูลและอัปเดตหน้าต่าง Admin
+     */
+    function refreshAdminData() {
+      // อัปเดตสถิติต่างๆ
+      const total = allItems.length;
+      const available = allItems.filter(i => i.status === 'Available').length;
+      const borrowed = allItems.filter(i => i.status === 'Borrowed').length;
+      
+      document.getElementById('statTotalItems').textContent = total;
+      document.getElementById('statAvailableItems').textContent = available;
+      document.getElementById('statBorrowedItems').textContent = borrowed;
+
+      if (typeof google === 'undefined' || !google.script) {
+        // Mock Transactions
+        allTransactions = [
+          { transactionId: 'TXN-20261101-1021', itemId: 'AV-001', itemName: 'Sony Alpha 7 IV (Body)', borrowerName: 'สมศักดิ์ มีสุข', borrowerEmail: 'somsak@company.com', department: 'Marketing', borrowType: 'ออกนอกสถานที่', borrowDate: '2026-11-01 09:00', expectedReturnDate: '2026-11-03 18:00', actualReturnDate: '-', status: 'Overdue', reminderSentCount: 1, adminNotes: '' }
+        ];
+        document.getElementById('statOverdueItems').textContent = '1';
+        renderAdminTransactionsTable(allTransactions);
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(txns => {
+          allTransactions = txns || [];
+          const overdue = allTransactions.filter(t => t.status === 'Overdue').length;
+          document.getElementById('statOverdueItems').textContent = overdue;
+          filterAdminTxn();
+        })
+        .withFailureHandler(err => {
+          console.error(err);
+        })
+        .adminGetTransactions();
+    }
+
+    /**
+     * กรองและแสดงผลตาราง Transactions ในหน้า Admin
+     */
+    function filterAdminTxn() {
+      const statusFilter = document.getElementById('txnStatusFilter').value;
+      const q = (document.getElementById('txnSearchInput').value || '').trim().toLowerCase();
+
+      const filtered = allTransactions.filter(t => {
+        const matchStatus = statusFilter === 'ALL' || t.status === statusFilter;
+        const matchSearch = !q ||
+          t.transactionId.toLowerCase().includes(q) ||
+          t.borrowerName.toLowerCase().includes(q) ||
+          t.itemName.toLowerCase().includes(q) ||
+          t.borrowerEmail.toLowerCase().includes(q);
+        return matchStatus && matchSearch;
+      });
+
+      renderAdminTransactionsTable(filtered);
+    }
+
+    function renderAdminTransactionsTable(txns) {
+      const tbody = document.getElementById('txnTableBody');
+      if (txns.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">ไม่พบรายการประวัติการยืม-คืน</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = txns.map(t => {
+        let badge = '';
+        if (t.status === 'Active') {
+          badge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800">กำลังยืม</span>';
+        } else if (t.status === 'Overdue') {
+          badge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-800 animate-pulse">เกินกำหนด!</span>';
+        } else {
+          badge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">คืนแล้ว</span>';
+        }
+
+        const isReturnable = t.status === 'Active' || t.status === 'Overdue';
+
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3 px-3 font-mono font-bold text-primary-700">${t.transactionId}</td>
+            <td class="py-3 px-3">
+              <div class="font-medium text-slate-800">${t.itemName}</div>
+              <div class="text-[10px] text-slate-400">ID: ${t.itemId}</div>
+            </td>
+            <td class="py-3 px-3">
+              <div class="font-medium text-slate-800">${t.borrowerName}</div>
+              <div class="text-[10px] text-slate-500">${t.department} | ${t.borrowerEmail}</div>
+            </td>
+            <td class="py-3 px-3 text-slate-600">${t.borrowType}</td>
+            <td class="py-3 px-3 text-slate-600">${t.borrowDate}</td>
+            <td class="py-3 px-3 font-medium ${t.status === 'Overdue' ? 'text-rose-600' : 'text-slate-800'}">${t.expectedReturnDate}</td>
+            <td class="py-3 px-3">${badge}</td>
+            <td class="py-3 px-3 text-center">
+              ${isReturnable ? `
+                <button 
+                  onclick="openReturnModal('${t.transactionId}', '${t.itemName}')" 
+                  class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium rounded-lg text-[11px] border border-emerald-200 transition flex items-center space-x-1 mx-auto"
+                >
+                  <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                  <span>รับคืน</span>
+                </button>
+              ` : `
+                <span class="text-[10px] text-slate-400">คืนเมื่อ: ${t.actualReturnDate}</span>
+              `}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      renderIcons();
+    }
+
+    /**
+     * คอนเฟิร์มการส่งคืนอุปกรณ์ (Return Action)
+     */
+    function openReturnModal(txnId, itemName) {
+      document.getElementById('returnTxnId').value = txnId;
+      document.getElementById('returnModalSub').textContent = `รหัส: ${txnId} | อุปกรณ์: ${itemName}`;
+      document.getElementById('returnAdminNotes').value = '';
+      document.getElementById('returnModal').classList.remove('hidden');
+    }
+
+    function closeReturnModal() {
+      document.getElementById('returnModal').classList.add('hidden');
+    }
+
+    function confirmReturnAction() {
+      const txnId = document.getElementById('returnTxnId').value;
+      const notes = document.getElementById('returnAdminNotes').value.trim();
+
+      if (typeof google === 'undefined' || !google.script) {
+        closeReturnModal();
+        Swal.fire('สำเร็จ', `(Mock) บันทึกการส่งคืน ${txnId} เรียบร้อยแล้ว`, 'success');
+        const t = allTransactions.find(x => x.transactionId === txnId);
+        if (t) {
+          t.status = 'Returned';
+          t.actualReturnDate = '2026-11-04 16:50';
+        }
+        filterAdminTxn();
+        return;
+      }
+
+      Swal.fire({
+        title: 'กำลังบันทึกการส่งคืน...',
+        didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false
+      });
+
+      google.script.run
+        .withSuccessHandler(res => {
+          closeReturnModal();
+          if (res.success) {
+            Swal.fire('สำเร็จ', res.message, 'success');
+            // รีเฟรชข้อมูลทั้งสองฝั่ง
+            loadInitialData();
+            refreshAdminData();
+          } else {
+            Swal.fire('ผิดพลาด', res.message, 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+        })
+        .adminReturnItem(txnId, notes);
+    }
+
+    /**
+     * จัดการตารางอุปกรณ์ในฝั่ง Admin
+     */
+    function renderAdminItemsTable() {
+      const tbody = document.getElementById('adminItemTableBody');
+      tbody.innerHTML = allItems.map(item => {
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-2.5 px-3">
+              <img src="${item.imageUrl || 'https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?auto=format&fit=crop&w=600&q=80'}" class="w-10 h-10 rounded-lg object-cover bg-slate-100 border">
+            </td>
+            <td class="py-2.5 px-3 font-mono font-bold text-slate-700">${item.itemId}</td>
+            <td class="py-2.5 px-3 font-medium text-slate-800">${item.itemName}</td>
+            <td class="py-2.5 px-3 text-slate-600">${item.category}</td>
+            <td class="py-2.5 px-3 text-slate-600">${item.serialNo || '-'}</td>
+            <td class="py-2.5 px-3">
+              <select onchange="updateItemStatusDirect('${item.itemId}', this.value)" class="text-[11px] border border-slate-300 rounded px-2 py-1 font-medium ${item.status === 'Available' ? 'text-emerald-700 bg-emerald-50' : (item.status === 'Borrowed' ? 'text-amber-700 bg-amber-50' : 'text-rose-700 bg-rose-50')}">
+                <option value="Available" ${item.status === 'Available' ? 'selected' : ''}>Available</option>
+                <option value="Borrowed" ${item.status === 'Borrowed' ? 'selected' : ''}>Borrowed</option>
+                <option value="Maintenance" ${item.status === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
+              </select>
+            </td>
+            <td class="py-2.5 px-3 text-slate-500 max-w-[150px] truncate">${item.remarks || '-'}</td>
+            <td class="py-2.5 px-3 text-center">
+              <button onclick='editItemDirect(${JSON.stringify(item)})' class="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-slate-100 rounded-lg" title="แก้ไข">
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      renderIcons();
+    }
+
+    function updateItemStatusDirect(itemId, newStatus) {
+      if (typeof google === 'undefined' || !google.script) {
+        const item = allItems.find(i => i.itemId === itemId);
+        if (item) item.status = newStatus;
+        filterItems();
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            const item = allItems.find(i => i.itemId === itemId);
+            if (item) item.status = newStatus;
+            filterItems();
+            refreshAdminData();
+          }
+        })
+        .adminUpdateItemStatus(itemId, newStatus);
+    }
+
+    /**
+     * เพิ่ม / แก้ไข อุปกรณ์
+     */
+    function openItemModal(isEdit, itemData) {
+      document.getElementById('editItemIsEdit').value = isEdit ? 'true' : 'false';
+      document.getElementById('itemModalTitle').textContent = isEdit ? 'แก้ไขข้อมูลอุปกรณ์' : 'เพิ่มอุปกรณ์ใหม่เข้าสู่ระบบ';
+      
+      if (isEdit && itemData) {
+        document.getElementById('editItemId').value = itemData.itemId;
+        document.getElementById('editItemId').readOnly = true;
+        document.getElementById('editItemName').value = itemData.itemName;
+        document.getElementById('editItemCategory').value = itemData.category;
+        document.getElementById('editItemStatus').value = itemData.status;
+        document.getElementById('editItemSerial').value = itemData.serialNo || '';
+        document.getElementById('editItemImage').value = itemData.imageUrl || '';
+        document.getElementById('editItemRemarks').value = itemData.remarks || '';
+      } else {
+        document.getElementById('editItemId').value = '';
+        document.getElementById('editItemId').readOnly = false;
+        document.getElementById('editItemName').value = '';
+        document.getElementById('editItemCategory').value = '';
+        document.getElementById('editItemStatus').value = 'Available';
+        document.getElementById('editItemSerial').value = '';
+        document.getElementById('editItemImage').value = '';
+        document.getElementById('editItemRemarks').value = '';
+      }
+      document.getElementById('itemModal').classList.remove('hidden');
+    }
+
+    function editItemDirect(item) {
+      openItemModal(true, item);
+    }
+
+    function closeItemModal() {
+      document.getElementById('itemModal').classList.add('hidden');
+    }
+
+    function handleItemFormSubmit(e) {
+      e.preventDefault();
+      const itemData = {
+        isEdit: document.getElementById('editItemIsEdit').value === 'true',
+        itemId: document.getElementById('editItemId').value.trim(),
+        itemName: document.getElementById('editItemName').value.trim(),
+        category: document.getElementById('editItemCategory').value.trim(),
+        status: document.getElementById('editItemStatus').value,
+        serialNo: document.getElementById('editItemSerial').value.trim(),
+        imageUrl: document.getElementById('editItemImage').value.trim(),
+        remarks: document.getElementById('editItemRemarks').value.trim()
+      };
+
+      if (typeof google === 'undefined' || !google.script) {
+        closeItemModal();
+        Swal.fire('สำเร็จ', '(Mock) บันทึกอุปกรณ์เรียบร้อยแล้ว', 'success');
+        return;
+      }
+
+      Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+      google.script.run
+        .withSuccessHandler(res => {
+          closeItemModal();
+          if (res.success) {
+            Swal.fire('สำเร็จ', res.message, 'success');
+            loadInitialData();
+            setTimeout(refreshAdminData, 600);
+          } else {
+            Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
+          }
+        })
+        .adminSaveItem(itemData);
+    }
+
+    /**
+     * แสดงผลการตั้งค่าในหน้า Cron
+     */
+    function renderAdminSettings() {
+      const grid = document.getElementById('settingsDisplayGrid');
+      grid.innerHTML = `
+        <div class="p-3 bg-slate-50 rounded-lg">
+          <span class="text-slate-400 block mb-1">ชื่อองค์กร / ฝ่ายดูแล:</span>
+          <span class="font-semibold text-slate-800">${systemSettings.organizationName || '-'}</span>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-lg">
+          <span class="text-slate-400 block mb-1">แจ้งเตือนล่วงหน้าก่อนกำหนด:</span>
+          <span class="font-semibold text-slate-800">${systemSettings.reminderDaysBefore || '1'} วัน</span>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-lg md:col-span-2">
+          <span class="text-slate-400 block mb-1">ข้อมูลติดต่อฝ่ายดูแล:</span>
+          <span class="font-semibold text-slate-800">${systemSettings.contactInfo || '-'}</span>
+        </div>
+      `;
+    }
+
+    /**
+     * Admin Triggers (รันเช็คการเตือน & สร้าง Cron)
+     */
+    function triggerRunReminders() {
+      Swal.fire({
+        title: 'กำลังตรวจสอบและส่งอีเมลแจ้งเตือน...',
+        didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false
+      });
+
+      if (typeof google === 'undefined' || !google.script) {
+        setTimeout(() => {
+          Swal.fire('สำเร็จ (Mock)', 'ตรวจเช็คเรียบร้อย: ส่งเตือนใกล้ครบกำหนด 1 รายการ, เกินกำหนด 1 รายการ', 'success');
+        }, 1000);
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(res => {
+          Swal.fire('รายงานผลการแจ้งเตือน', res, 'info');
+          refreshAdminData();
+        })
+        .withFailureHandler(err => {
+          Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+        })
+        .checkAndSendReminders();
+    }
+
+    function triggerSetupTrigger() {
+      Swal.fire({
+        title: 'ยืนยันการตั้งค่า Trigger',
+        text: 'ระบบจะสร้าง Time-driven Trigger เพื่อรันฟังก์ชัน checkAndSendReminders อัตโนมัติทุกวันเวลา 08:00 น.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยันติดตั้ง',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#059669'
+      }).then(result => {
+        if (result.isConfirmed) {
+          if (typeof google === 'undefined' || !google.script) {
+            Swal.fire('สำเร็จ', '(Mock) ติดตั้ง Trigger ทุกวันเวลา 08:00 น. เรียบร้อยแล้ว', 'success');
+            return;
+          }
+
+          Swal.fire({ title: 'กำลังติดตั้ง...', didOpen: () => Swal.showLoading() });
+          google.script.run
+            .withSuccessHandler(res => {
+              Swal.fire('สำเร็จ', res, 'success');
+            })
+            .withFailureHandler(err => {
+              Swal.fire('ข้อผิดพลาด', err.message, 'error');
+            })
+            .setupDailyReminderTrigger();
+        }
+      });
+    }
+  </script>
+</body>
+</html>
