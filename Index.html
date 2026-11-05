@@ -891,19 +891,32 @@
         const fallbackImg = `https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?auto=format&fit=crop&w=600&q=80`;
         const itemImg = item.imageUrl ? item.imageUrl : fallbackImg;
 
+        let remarksHtml = '';
+        if (item.remarks) {
+          remarksHtml = '<p class="text-[11px] text-slate-500 line-clamp-2 bg-slate-50 p-2 rounded-lg border border-slate-100 mb-3">' + escapeHtml(item.remarks) + '</p>';
+        }
+
+        let actionButtonHtml = '';
+        if (isAvailable) {
+          actionButtonHtml = '<button type="button" onclick="openBorrowModal(\'' + escapeHtml(item.itemId) + '\')" class="w-full py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-medium transition flex items-center justify-center space-x-1.5 shadow-sm shadow-primary-500/20 active:scale-95"><i class="fa-solid fa-hand mr-1"></i><span>ขอยืมอุปกรณ์นี้</span></button>';
+        } else {
+          const disabledText = isBorrowed ? 'อุปกรณ์ไม่ว่าง (กำลังถูกยืม)' : 'งดให้บริการ (ซ่อมบำรุง)';
+          actionButtonHtml = '<button type="button" disabled class="w-full py-2 px-3 bg-slate-100 text-slate-400 rounded-xl text-xs font-medium cursor-not-allowed flex items-center justify-center space-x-1.5"><i class="fa-solid fa-lock mr-1"></i><span>' + disabledText + '</span></button>';
+        }
+
         return `
           <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group">
             <!-- Card Image -->
             <div class="relative h-44 bg-slate-100 overflow-hidden">
               <img 
                 src="${itemImg}" 
-                alt="${item.itemName}" 
+                alt="${escapeHtml(item.itemName)}" 
                 class="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
                 onerror="this.src='${fallbackImg}'"
               >
               <div class="absolute top-3 left-3">
                 <span class="text-[10px] font-semibold bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-slate-700 shadow-sm border border-slate-200">
-                  ${item.itemId}
+                  ${escapeHtml(item.itemId)}
                 </span>
               </div>
               <div class="absolute top-3 right-3">
@@ -914,36 +927,20 @@
             <!-- Card Content -->
             <div class="p-4 flex-1 flex flex-col justify-between">
               <div>
-                <p class="text-[11px] font-medium text-primary-600 mb-1">${item.category}</p>
-                <h3 class="font-bold text-slate-800 text-sm line-clamp-1 mb-1.5" title="${item.itemName}">
-                  ${item.itemName}
+                <p class="text-[11px] font-medium text-primary-600 mb-1">${escapeHtml(item.category)}</p>
+                <h3 class="font-bold text-slate-800 text-sm line-clamp-1 mb-1.5" title="${escapeHtml(item.itemName)}">
+                  ${escapeHtml(item.itemName)}
                 </h3>
                 <p class="text-[11px] text-slate-500 flex items-center space-x-1 mb-2">
-                  <i data-lucide="hash" class="w-3.5 h-3.5"></i>
-                  <span>Serial: ${item.serialNo || 'ไม่มีระบุ'}</span>
+                  <i class="fa-solid fa-hashtag text-[11px]"></i>
+                  <span>Serial: ${escapeHtml(item.serialNo || 'ไม่มีระบุ')}</span>
                 </p>
-                ${item.remarks ? `<p class="text-[11px] text-slate-500 line-clamp-2 bg-slate-50 p-2 rounded-lg border border-slate-100 mb-3">${item.remarks}</p>` : ''}
+                ${remarksHtml}
               </div>
 
               <!-- Button Action -->
               <div class="pt-3 border-t border-slate-100 mt-2">
-                ${isAvailable ? `
-                  <button 
-                    onclick="openBorrowModal('${item.itemId}')" 
-                    class="w-full py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-medium transition flex items-center justify-center space-x-1.5 shadow-sm shadow-primary-500/20 active:scale-95"
-                  >
-                    <i data-lucide="hand" class="w-4 h-4"></i>
-                    <span>ขอยืมอุปกรณ์นี้</span>
-                  </button>
-                ` : `
-                  <button 
-                    disabled 
-                    class="w-full py-2 px-3 bg-slate-100 text-slate-400 rounded-xl text-xs font-medium cursor-not-allowed flex items-center justify-center space-x-1.5"
-                  >
-                    <i data-lucide="lock" class="w-4 h-4"></i>
-                    <span>${isBorrowed ? 'อุปกรณ์ไม่ว่าง (กำลังถูกยืม)' : 'งดให้บริการ (ซ่อมบำรุง)'}</span>
-                  </button>
-                `}
+                ${actionButtonHtml}
               </div>
 
             </div>
@@ -1209,6 +1206,12 @@
         }
 
         const isReturnable = t.status === 'Active' || t.status === 'Overdue';
+        let actionCellHtml = '';
+        if (isReturnable) {
+          actionCellHtml = '<button type="button" onclick="openReturnModal(\'' + escapeHtml(t.transactionId) + '\')" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium rounded-lg text-[11px] border border-emerald-200 transition flex items-center space-x-1 mx-auto"><i class="fa-solid fa-check mr-1"></i><span>รับคืน</span></button>';
+        } else {
+          actionCellHtml = '<span class="text-[10px] text-slate-400">คืนเมื่อ: ' + escapeHtml(t.actualReturnDate) + '</span>';
+        }
 
         return `
           <tr class="hover:bg-slate-50 transition">
@@ -1226,18 +1229,7 @@
             <td class="py-3 px-3 font-medium ${t.status === 'Overdue' ? 'text-rose-600' : 'text-slate-800'}">${t.expectedReturnDate}</td>
             <td class="py-3 px-3">${badge}</td>
             <td class="py-3 px-3 text-center">
-              ${isReturnable ? `
-                <button 
-                  type="button"
-                  onclick="openReturnModal('${t.transactionId}')" 
-                  class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium rounded-lg text-[11px] border border-emerald-200 transition flex items-center space-x-1 mx-auto"
-                >
-                  <i class="fa-solid fa-check mr-1"></i>
-                  <span>รับคืน</span>
-                </button>
-              ` : `
-                <span class="text-[10px] text-slate-400">คืนเมื่อ: ${t.actualReturnDate}</span>
-              `}
+              ${actionCellHtml}
             </td>
           </tr>
         `;
