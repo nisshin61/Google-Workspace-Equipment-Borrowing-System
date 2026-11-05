@@ -217,11 +217,15 @@ function getInitialData() {
     
     const isAdmin = currentUserEmail ? adminEmails.includes(currentUserEmail.toLowerCase()) : false;
     
+    // โหลดรายการธุรกรรมสำหรับแท็บติดตามสถานะ (เปิดให้ทุกคนดูได้)
+    const trackingTransactions = getTrackingTransactions();
+    
     return {
       items: items,
       categories: Array.from(categoriesSet),
       currentUserEmail: currentUserEmail,
       isAdmin: isAdmin,
+      trackingTransactions: trackingTransactions,
       settings: {
         organizationName: String(settings.Organization_Name || 'ระบบยืม-คืนอุปกรณ์'),
         emailHeader: String(settings.Email_Header || 'ระบบยืม-คืนอุปกรณ์ส่วนกลาง'),
@@ -317,13 +321,13 @@ function submitBorrowRequest(formData) {
       borrowDateStr,
       expectedReturnDateStr,
       '',           // Actual_Return_Date
-      'Active',     // Status
+      'Pending',    // Status เริ่มต้นเป็น "Pending" (รอจัดเตรียม / ตรวจสอบ)
       0,            // Reminder_Sent_Count
-      userNotes     // Admin_Notes / User purpose
+      userNotes     // Admin_Notes
     ];
     sheetTxn.appendRow(newTxnRow);
 
-    // 2. อัปเดตสถานะของอุปกรณ์ในชีต Items เป็น "Borrowed"
+    // 2. อัปเดตสถานะของอุปกรณ์ในชีต Items เป็น "Borrowed" เพื่อป้องกันการยืมซ้อน
     sheetItems.getRange(itemRowIndex, 4).setValue('Borrowed');
 
     // 3. ส่งอีเมลยืนยันการยืมทันที
@@ -550,39 +554,302 @@ function sendReturnConfirmationEmail(data) {
 }
 
 /**
+ * ส่งอีเมลแจ้งเตือนผู้ยืมว่าอุปกรณ์พร้อมให้มารับแล้ว (Pickup Ready Email)
+ */
+function sendPickupReadyEmail(data) {
+  try {
+    const orgName = data.settings.Organization_Name || 'ระบบยืม-คืนอุปกรณ์';
+    const subject = `[แจ้งพร้อมรับอุปกรณ์] ${data.itemName} (รหัส: ${data.transactionId})`;
+    
+    const htmlBody = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; margin: 0; padding: 20px; color: #1f2937; }
+          .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+          .header { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; padding: 28px 24px; text-align: center; }
+          .header h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: bold; }
+          .header p { margin: 0; opacity: 0.9; font-size: 14px; }
+          .content { padding: 24px; }
+          .badge { display: inline-block; background-color: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 9999px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+          .pickup-box { background-color: #eff6ff; border: 2px solid #3b82f6; border-radius: 10px; padding: 18px; margin: 16px 0; text-align: center; }
+          .pickup-title { font-size: 13px; color: #1e40af; font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+          .pickup-room { font-size: 20px; color: #1e3a8a; font-weight: bold; }
+          .detail-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; }
+          .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #cbd5e1; font-size: 14px; }
+          .detail-row:last-child { border-bottom: none; }
+          .detail-label { color: #64748b; font-weight: 500; }
+          .detail-val { color: #0f172a; font-weight: 600; text-align: right; }
+          .alert-box { background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 4px; margin-top: 20px; font-size: 13px; color: #92400e; }
+          .footer { background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; font-size: 12px; color: #94a3b8; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>${orgName}</h1>
+            <p>แจ้งเตือนพร้อมรับอุปกรณ์</p>
+          </div>
+          <div class="content">
+            <span class="badge">รหัสอ้างอิง: ${data.transactionId}</span>
+            <p style="font-size: 15px; margin-top: 0;">
+              เรียน คุณ <strong>${data.borrowerName}</strong>
+            </p>
+            <p style="font-size: 14px; color: #4b5563; line-height: 1.5;">
+              คำขอยืมอุปกรณ์ของท่านได้รับการจัดเตรียมเรียบร้อยแล้ว ท่านสามารถเดินทางมารับเครื่องอุปกรณ์ได้ตามสถานที่ดังต่อไปนี้:
+            </p>
+
+            <div class="pickup-box">
+              <div class="pickup-title">📍 สถานที่ / ห้องสำหรับรับอุปกรณ์</div>
+              <div class="pickup-room">${data.pickupLocation || 'ห้อง IT Support ส่วนกลาง'}</div>
+            </div>
+
+            <div class="detail-box">
+              <div class="detail-row">
+                <span class="detail-label">อุปกรณ์:</span>
+                <span class="detail-val">${data.itemName}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">รหัสทรัพย์สิน:</span>
+                <span class="detail-val">${data.itemId || '-'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">วันที่ขอยืม:</span>
+                <span class="detail-val">${data.borrowDate}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label" style="color: #dc2626;">กำหนดส่งคืน:</span>
+                <span class="detail-val" style="color: #dc2626; font-size: 15px;">${data.expectedReturnDate}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">สถานะปัจจุบัน:</span>
+                <span class="detail-val" style="color: #2563eb;">พร้อมรับอุปกรณ์ (Ready for Pickup)</span>
+              </div>
+            </div>
+
+            <div class="alert-box">
+              <strong>ข้อแนะนำในการรับอุปกรณ์:</strong>
+              <ul style="margin: 6px 0 0 0; padding-left: 20px;">
+                <li>กรุณาแสดงอีเมลนี้หรือแจ้งรหัส <strong>${data.transactionId}</strong> ต่อเจ้าหน้าที่</li>
+                <li>กรุณาตรวจสอบอุปกรณ์และสายชาร์จ/อุปกรณ์ต่อพ่วงก่อนนำออกจากห้อง</li>
+              </ul>
+            </div>
+          </div>
+          <div class="footer">
+            <p style="margin: 0;">อีเมลนี้เป็นข้อความอัตโนมัติจากระบบ ไม่ต้องตอบกลับ</p>
+            <p style="margin: 4px 0 0 0;">${data.settings.Contact_Info || ''}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    MailApp.sendEmail({
+      to: data.borrowerEmail,
+      subject: subject,
+      htmlBody: htmlBody
+    });
+    Logger.log(`Sent pickup ready email to ${data.borrowerEmail} for txn ${data.transactionId}`);
+  } catch (err) {
+    Logger.log('Error sending pickup ready email: ' + err.toString());
+  }
+}
+
+/**
+ * ดึงรายการธุรกรรมสำหรับแท็บติดตามสถานะ (เปิดให้ทุกคนเข้าดูได้ เรียงจากใหม่ไปเก่า)
+ */
+function getTrackingTransactions() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) return [];
+    const sheetTxn = ss.getSheetByName(SHEET_TRANSACTIONS);
+    if (!sheetTxn) return [];
+    
+    const data = sheetTxn.getDataRange().getValues();
+    const transactions = [];
+    
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (!row[0]) continue;
+      
+      const adminNote = String(row[12] || '');
+      let pickupLocation = '';
+      if (adminNote.indexOf('สถานที่รับเครื่อง:') !== -1) {
+        const parts = adminNote.split('สถานที่รับเครื่อง:');
+        if (parts.length > 1) {
+          pickupLocation = parts[1].split('|')[0].trim();
+        }
+      }
+      
+      transactions.push({
+        transactionId: String(row[0]),
+        itemId: String(row[1]),
+        itemName: String(row[2]),
+        borrowerName: String(row[3]),
+        borrowerEmail: String(row[4]),
+        department: String(row[5]),
+        borrowType: String(row[6]),
+        borrowDate: formatDisplayDate(row[7]),
+        expectedReturnDate: formatDisplayDate(row[8]),
+        actualReturnDate: row[9] ? formatDisplayDate(row[9]) : '-',
+        status: String(row[10] || 'Pending'),
+        reminderSentCount: Number(row[11] || 0),
+        pickupLocation: pickupLocation,
+        adminNotes: adminNote
+      });
+    }
+    
+    return transactions.reverse();
+  } catch (err) {
+    Logger.log('Error in getTrackingTransactions: ' + err.toString());
+    return [];
+  }
+}
+
+/**
  * 4. หน้าต่าง UI ฝั่ง Admin: ดึงรายการประวัติ Transactions ทั้งหมด
  */
 function adminGetTransactions() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetTxn = ss.getSheetByName(SHEET_TRANSACTIONS);
-  if (!sheetTxn) return [];
-  
-  const data = sheetTxn.getDataRange().getValues();
-  const transactions = [];
-  
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    if (!row[0]) continue;
-    
-    transactions.push({
-      transactionId: String(row[0]),
-      itemId: String(row[1]),
-      itemName: String(row[2]),
-      borrowerName: String(row[3]),
-      borrowerEmail: String(row[4]),
-      department: String(row[5]),
-      borrowType: String(row[6]),
-      borrowDate: formatDisplayDate(row[7]),
-      expectedReturnDate: formatDisplayDate(row[8]),
-      actualReturnDate: row[9] ? formatDisplayDate(row[9]) : '-',
-      status: String(row[10]), // Active, Returned, Overdue
-      reminderSentCount: Number(row[11] || 0),
-      adminNotes: String(row[12] || '')
-    });
+  return getTrackingTransactions();
+}
+
+/**
+ * ฟังก์ชัน Admin: เปลี่ยนสถานะเป็น "พร้อมรับเครื่อง (Ready)" + ระบุห้อง + ส่งอีเมลแจ้งผู้ยืม
+ */
+function adminSetReadyForPickup(transactionId, pickupLocation) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return { success: false, message: 'ระบบกำลังประมวลผล กรุณาลองใหม่อีกครั้ง' };
   }
-  
-  // จัดเรียงรายการใหม่ล่าสุดขึ้นก่อน
-  return transactions.reverse();
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetTxn = ss.getSheetByName(SHEET_TRANSACTIONS);
+    if (!sheetTxn) return { success: false, message: 'ไม่พบชีต Transactions' };
+
+    const txnData = sheetTxn.getDataRange().getValues();
+    let txnRowIndex = -1;
+    let itemId = '';
+    let itemName = '';
+    let borrowerName = '';
+    let borrowerEmail = '';
+    let borrowDate = '';
+    let expectedReturnDate = '';
+    let currentNotes = '';
+
+    const targetTxnId = String(transactionId || '').trim().toUpperCase();
+    for (let i = 1; i < txnData.length; i++) {
+      if (String(txnData[i][0]).trim().toUpperCase() === targetTxnId) {
+        txnRowIndex = i + 1;
+        itemId = String(txnData[i][1]).trim();
+        itemName = String(txnData[i][2]);
+        borrowerName = String(txnData[i][3]);
+        borrowerEmail = String(txnData[i][4]);
+        borrowDate = formatDisplayDate(txnData[i][7]);
+        expectedReturnDate = formatDisplayDate(txnData[i][8]);
+        currentNotes = String(txnData[i][12] || '');
+        break;
+      }
+    }
+
+    if (txnRowIndex === -1) {
+      return { success: false, message: 'ไม่พบรหัสรายการ ' + transactionId };
+    }
+
+    const cleanLocation = String(pickupLocation || '').trim();
+
+    // อัปเดต Status เป็น 'Ready'
+    sheetTxn.getRange(txnRowIndex, 11).setValue('Ready');
+
+    // บันทึกสถานที่รับเครื่องใน Admin_Notes
+    let updatedNotes = currentNotes;
+    if (updatedNotes.indexOf('สถานที่รับเครื่อง:') !== -1) {
+      updatedNotes = updatedNotes.replace(/สถานที่รับเครื่อง:[^|]+/, 'สถานที่รับเครื่อง: ' + cleanLocation);
+    } else {
+      updatedNotes = updatedNotes ? (updatedNotes + ' | สถานที่รับเครื่อง: ' + cleanLocation) : ('สถานที่รับเครื่อง: ' + cleanLocation);
+    }
+    sheetTxn.getRange(txnRowIndex, 13).setValue(updatedNotes);
+
+    SpreadsheetApp.flush();
+
+    // ส่งอีเมลแจ้งเตือนผู้ยืมทันที
+    if (borrowerEmail) {
+      const settings = getSettings();
+      sendPickupReadyEmail({
+        transactionId: targetTxnId,
+        itemName: itemName,
+        itemId: itemId,
+        borrowerName: borrowerName,
+        borrowerEmail: borrowerEmail,
+        pickupLocation: cleanLocation,
+        borrowDate: borrowDate,
+        expectedReturnDate: expectedReturnDate,
+        settings: settings
+      });
+    }
+
+    return {
+      success: true,
+      message: 'ปรับสถานะเป็น "พร้อมรับอุปกรณ์" และส่งอีเมลแจ้งไปยัง ' + borrowerEmail + ' เรียบร้อยแล้ว'
+    };
+  } catch (err) {
+    Logger.log('Error in adminSetReadyForPickup: ' + err.toString());
+    return { success: false, message: 'เกิดข้อผิดพลาด: ' + err.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * ฟังก์ชัน Admin: ยืนยันการส่งมอบเครื่อง (เปลี่ยนสถานะเป็น Active - กำลังยืม)
+ */
+function adminMarkPickedUp(transactionId) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return { success: false, message: 'ระบบกำลังประมวลผล กรุณาลองใหม่อีกครั้ง' };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetTxn = ss.getSheetByName(SHEET_TRANSACTIONS);
+    if (!sheetTxn) return { success: false, message: 'ไม่พบชีต Transactions' };
+
+    const txnData = sheetTxn.getDataRange().getValues();
+    let txnRowIndex = -1;
+    let itemName = '';
+
+    const targetTxnId = String(transactionId || '').trim().toUpperCase();
+    for (let i = 1; i < txnData.length; i++) {
+      if (String(txnData[i][0]).trim().toUpperCase() === targetTxnId) {
+        txnRowIndex = i + 1;
+        itemName = String(txnData[i][2]);
+        break;
+      }
+    }
+
+    if (txnRowIndex === -1) {
+      return { success: false, message: 'ไม่พบรหัสรายการ ' + transactionId };
+    }
+
+    sheetTxn.getRange(txnRowIndex, 11).setValue('Active');
+    SpreadsheetApp.flush();
+
+    return {
+      success: true,
+      message: 'ยืนยันการส่งมอบอุปกรณ์ ' + itemName + ' สำเร็จ สถานะเปลี่ยนเป็น "กำลังยืม (Active)"'
+    };
+  } catch (err) {
+    Logger.log('Error in adminMarkPickedUp: ' + err.toString());
+    return { success: false, message: 'เกิดข้อผิดพลาด: ' + err.message };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /**
