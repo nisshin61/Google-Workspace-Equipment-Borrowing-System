@@ -579,6 +579,21 @@
 
   <!-- ================= JAVASCRIPT LOGIC ================= -->
   <script>
+    // ดักจับ Error ทั่วหน้าเว็บและแสดงผลทันทีแทนที่จะหมุนค้าง
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      console.error('Global JS Error:', msg, 'line:', lineNo, error);
+      const grid = document.getElementById('itemsGrid');
+      if (grid) {
+        grid.innerHTML = `
+          <div class="col-span-full py-8 px-6 text-center bg-rose-50 rounded-2xl border border-rose-200 text-rose-700">
+            <h3 class="font-bold text-sm mb-1">เกิดข้อผิดพลาดของสคริปต์หน้าเว็บ</h3>
+            <p class="text-xs text-rose-600 font-mono mb-2">${msg} (บรรทัดที่ ${lineNo})</p>
+          </div>
+        `;
+      }
+      return false;
+    };
+
     // System State
     let allItems = [];
     let filteredItems = [];
@@ -610,9 +625,9 @@
       }
     }
 
-    // Document Ready
-    window.addEventListener('DOMContentLoaded', () => {
-      try { setDefaultDateTimes(); } catch (e) { console.error(e); }
+    // Document Ready - รองรับทั้ง DOMContentLoaded และ readyState interactive/complete
+    function initApp() {
+      try { setDefaultDateTimes(); } catch (e) { console.error('setDefaultDateTimes error:', e); }
       renderIcons();
 
       // ตรวจสอบข้อมูล Preload จาก Tag JSON ที่ปลอดภัย
@@ -623,17 +638,24 @@
           preloaded = JSON.parse(jsonTag.textContent.trim());
         }
       } catch (e) {
-        console.log('No preloaded server data:', e);
+        console.error('JSON parse error on serverDataScript:', e);
       }
 
-      if (preloaded && preloaded.items && Array.isArray(preloaded.items)) {
+      if (preloaded && preloaded.items && Array.isArray(preloaded.items) && preloaded.items.length > 0) {
         console.log('Loaded from server preload successfully:', preloaded.items.length, 'items');
         applyInitialData(preloaded);
       } else {
-        console.log('Calling google.script.run.getInitialData()...');
+        console.warn('Preload empty or not ready, calling loadInitialData()...', preloaded);
         loadInitialData();
       }
-    });
+    }
+
+    // เรียกทำงานทันทีถ้า DOM พร้อมแล้ว ป้องกันเหตุการณ์ DOMContentLoaded ยิงไปก่อนแล้วค้าง
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
 
     /**
      * นำข้อมูลมาแสดงผลบนหน้าจอ
