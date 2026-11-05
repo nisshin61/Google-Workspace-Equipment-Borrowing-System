@@ -455,6 +455,101 @@ function sendBorrowConfirmationEmail(data) {
 }
 
 /**
+ * ส่งอีเมลยืนยันการรับคืนอุปกรณ์ (Return Receipt Confirmation)
+ */
+function sendReturnConfirmationEmail(data) {
+  try {
+    const orgName = data.settings.Organization_Name || 'ระบบยืม-คืนอุปกรณ์';
+    const subject = `[ยืนยันการรับคืนอุปกรณ์] ${data.itemName} (รหัส: ${data.transactionId})`;
+    const formattedReturnDate = formatDisplayDate(data.returnTimestamp);
+    
+    const htmlBody = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; margin: 0; padding: 20px; color: #1f2937; }
+          .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+          .header { background: linear-gradient(135deg, #059669, #047857); color: #ffffff; padding: 28px 24px; text-align: center; }
+          .header h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: bold; }
+          .header p { margin: 0; opacity: 0.9; font-size: 14px; }
+          .content { padding: 24px; }
+          .badge { display: inline-block; background-color: #d1fae5; color: #065f46; padding: 4px 12px; border-radius: 9999px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+          .success-message { background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 14px 18px; border-radius: 6px; margin-bottom: 20px; font-size: 15px; color: #065f46; font-weight: 600; }
+          .detail-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; }
+          .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #cbd5e1; font-size: 14px; }
+          .detail-row:last-child { border-bottom: none; }
+          .detail-label { color: #64748b; font-weight: 500; }
+          .detail-val { color: #0f172a; font-weight: 600; text-align: right; }
+          .footer { background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; font-size: 12px; color: #94a3b8; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>${orgName}</h1>
+            <p>บันทึกการส่งคืนอุปกรณ์สำเร็จ</p>
+          </div>
+          <div class="content">
+            <span class="badge">รหัสอ้างอิง: ${data.transactionId}</span>
+            <p style="font-size: 15px; margin-top: 0;">
+              เรียน คุณ <strong>${data.borrowerName}</strong>
+            </p>
+            
+            <div class="success-message">
+              ✓ เจ้าหน้าที่ IT ได้รับอุปกรณ์ที่ท่านคืนไปเรียบร้อยแล้ว
+            </div>
+
+            <div class="detail-box">
+              <div class="detail-row">
+                <span class="detail-label">อุปกรณ์ที่ส่งคืน:</span>
+                <span class="detail-val">${data.itemName}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">รหัสอุปกรณ์:</span>
+                <span class="detail-val">${data.itemId || '-'}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label" style="color: #059669;">วันที่และเวลาที่รับคืน:</span>
+                <span class="detail-val" style="color: #059669; font-size: 15px;">${formattedReturnDate} น.</span>
+              </div>
+              ${data.adminNotes ? `
+              <div class="detail-row">
+                <span class="detail-label">บันทึกสภาพ / หมายเหตุ:</span>
+                <span class="detail-val">${data.adminNotes}</span>
+              </div>` : ''}
+              <div class="detail-row">
+                <span class="detail-label">สถานะการทำรายการ:</span>
+                <span class="detail-val" style="color: #059669;">ส่งคืนเสร็จสมบูรณ์ (Returned)</span>
+              </div>
+            </div>
+
+            <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
+              ขอขอบคุณที่ให้ความร่วมมือในการส่งคืนอุปกรณ์ตามระเบียบขององค์กร หากมีข้อสงสัยหรือต้องการสอบถามเพิ่มเติม สามารถติดต่อเจ้าหน้าที่ได้ตามข้อมูลด้านล่าง
+            </p>
+          </div>
+          <div class="footer">
+            <p style="margin: 0;">อีเมลนี้เป็นข้อความอัตโนมัติจากระบบ ไม่ต้องตอบกลับ</p>
+            <p style="margin: 4px 0 0 0;">${data.settings.Contact_Info || ''}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    MailApp.sendEmail({
+      to: data.borrowerEmail,
+      subject: subject,
+      htmlBody: htmlBody
+    });
+    Logger.log(`Sent return confirmation email to ${data.borrowerEmail} for txn ${data.transactionId}`);
+  } catch (err) {
+    Logger.log('Error sending return confirmation email: ' + err.toString());
+  }
+}
+
+/**
  * 4. หน้าต่าง UI ฝั่ง Admin: ดึงรายการประวัติ Transactions ทั้งหมด
  */
 function adminGetTransactions() {
@@ -558,6 +653,25 @@ function adminReturnItem(transactionId, adminNotes) {
     
     // บังคับบันทึกการเปลี่ยนแปลงลง Google Sheets ทันที (ป้องกัน Delay/Cache)
     SpreadsheetApp.flush();
+    
+    // ส่งอีเมลยืนยันการรับคืนอุปกรณ์ไปยังผู้ยืม
+    if (borrowerEmail) {
+      try {
+        const settings = getSettings();
+        sendReturnConfirmationEmail({
+          transactionId: targetTxnId,
+          itemName: itemName,
+          itemId: itemIdToReturn,
+          borrowerName: borrowerName,
+          borrowerEmail: borrowerEmail,
+          returnTimestamp: returnTimestamp,
+          adminNotes: adminNotes || '',
+          settings: settings
+        });
+      } catch (mailErr) {
+        Logger.log('Error triggering return confirmation email: ' + mailErr.toString());
+      }
+    }
     
     return {
       success: true,
