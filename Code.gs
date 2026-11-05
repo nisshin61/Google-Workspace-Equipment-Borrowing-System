@@ -160,56 +160,79 @@ function getSettings() {
  * ดึงข้อมูลเบื้องต้นสำหรับแสดงผลบนเว็บ (โหลดครั้งเดียวตอนเปิดหน้าเว็บ)
  */
 function getInitialData() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss.getSheetByName(SHEET_ITEMS) || !ss.getSheetByName(SHEET_TRANSACTIONS) || !ss.getSheetByName(SHEET_SETTINGS)) {
-    initDatabase();
-  }
-  
-  // 1. อ่านรายการอุปกรณ์
-  const sheetItems = ss.getSheetByName(SHEET_ITEMS);
-  const itemsData = sheetItems.getDataRange().getValues();
-  const items = [];
-  const categoriesSet = new Set();
-  
-  for (let i = 1; i < itemsData.length; i++) {
-    const row = itemsData[i];
-    if (!row[0]) continue;
-    const item = {
-      itemId: String(row[0]),
-      itemName: String(row[1]),
-      category: String(row[2]),
-      status: String(row[3]), // Available, Borrowed, Maintenance
-      serialNo: String(row[4] || ''),
-      imageUrl: String(row[5] || ''),
-      remarks: String(row[6] || '')
-    };
-    items.push(item);
-    if (item.category) categoriesSet.add(item.category);
-  }
-  
-  // 2. ข้อมูลผู้ใช้งานปัจจุบันและสิทธิ์แอดมิน
-  const currentUserEmail = Session.getActiveUser().getEmail() || '';
-  const settings = getSettings();
-  const adminEmails = (settings.Admin_Emails || '')
-    .split(',')
-    .map(e => e.trim().toLowerCase())
-    .filter(e => e.length > 0);
-  
-  // หากยังไม่สามารถตรวจจับอีเมลได้ (กรณี Anonymous ให้ถือว่าเป็น Normal User หรือหากตรงกับ Settings ถือเป็น Admin)
-  const isAdmin = currentUserEmail ? adminEmails.includes(currentUserEmail.toLowerCase()) : false;
-  
-  return {
-    items: items,
-    categories: Array.from(categoriesSet),
-    currentUserEmail: currentUserEmail,
-    isAdmin: isAdmin,
-    settings: {
-      organizationName: settings.Organization_Name || 'ระบบยืม-คืนอุปกรณ์',
-      emailHeader: settings.Email_Header || 'ระบบยืม-คืนอุปกรณ์ส่วนกลาง',
-      contactInfo: settings.Contact_Info || '',
-      reminderDaysBefore: settings.Reminder_Days_Before || 1
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      Logger.log('ActiveSpreadsheet is null');
+      return { items: [], categories: [], currentUserEmail: '', isAdmin: false, settings: {} };
     }
-  };
+    
+    if (!ss.getSheetByName(SHEET_ITEMS) || !ss.getSheetByName(SHEET_TRANSACTIONS) || !ss.getSheetByName(SHEET_SETTINGS)) {
+      initDatabase();
+    }
+    
+    // 1. อ่านรายการอุปกรณ์
+    const sheetItems = ss.getSheetByName(SHEET_ITEMS);
+    const items = [];
+    const categoriesSet = new Set();
+    
+    if (sheetItems) {
+      const itemsData = sheetItems.getDataRange().getValues();
+      for (let i = 1; i < itemsData.length; i++) {
+        const row = itemsData[i];
+        if (!row[0]) continue;
+        const item = {
+          itemId: String(row[0]),
+          itemName: String(row[1] || ''),
+          category: String(row[2] || 'ทั่วไป'),
+          status: String(row[3] || 'Available'),
+          serialNo: String(row[4] || ''),
+          imageUrl: String(row[5] || ''),
+          remarks: String(row[6] || '')
+        };
+        items.push(item);
+        if (item.category) categoriesSet.add(item.category);
+      }
+    }
+    
+    // 2. ข้อมูลผู้ใช้งานปัจจุบันและสิทธิ์แอดมิน
+    let currentUserEmail = '';
+    try {
+      currentUserEmail = Session.getActiveUser().getEmail() || '';
+    } catch (e) {
+      Logger.log('Session getActiveUser error: ' + e);
+    }
+    
+    let settings = {};
+    try {
+      settings = getSettings();
+    } catch (e) {
+      Logger.log('getSettings error: ' + e);
+    }
+    
+    const adminEmails = String(settings.Admin_Emails || '')
+      .split(',')
+      .map(e => e.trim().toLowerCase())
+      .filter(e => e.length > 0);
+    
+    const isAdmin = currentUserEmail ? adminEmails.includes(currentUserEmail.toLowerCase()) : false;
+    
+    return {
+      items: items,
+      categories: Array.from(categoriesSet),
+      currentUserEmail: currentUserEmail,
+      isAdmin: isAdmin,
+      settings: {
+        organizationName: String(settings.Organization_Name || 'ระบบยืม-คืนอุปกรณ์'),
+        emailHeader: String(settings.Email_Header || 'ระบบยืม-คืนอุปกรณ์ส่วนกลาง'),
+        contactInfo: String(settings.Contact_Info || ''),
+        reminderDaysBefore: Number(settings.Reminder_Days_Before || 1)
+      }
+    };
+  } catch (err) {
+    Logger.log('Fatal error in getInitialData: ' + err.toString());
+    return { items: [], categories: [], currentUserEmail: '', isAdmin: false, settings: {} };
+  }
 }
 
 /**
