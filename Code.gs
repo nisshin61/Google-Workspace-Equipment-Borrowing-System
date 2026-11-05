@@ -483,6 +483,10 @@ function adminReturnItem(transactionId, adminNotes) {
     const sheetTxn = ss.getSheetByName(SHEET_TRANSACTIONS);
     const sheetItems = ss.getSheetByName(SHEET_ITEMS);
     
+    if (!sheetTxn || !sheetItems) {
+      return { success: false, message: 'ไม่พบชีต Transactions หรือ Items ใน Google Sheets' };
+    }
+    
     const txnData = sheetTxn.getDataRange().getValues();
     let txnRowIndex = -1;
     let itemIdToReturn = null;
@@ -490,8 +494,9 @@ function adminReturnItem(transactionId, adminNotes) {
     let borrowerName = '';
     let itemName = '';
     
+    const targetTxnId = String(transactionId || '').trim().toUpperCase();
     for (let i = 1; i < txnData.length; i++) {
-      if (String(txnData[i][0]).trim() === String(transactionId).trim()) {
+      if (String(txnData[i][0]).trim().toUpperCase() === targetTxnId) {
         txnRowIndex = i + 1;
         itemIdToReturn = String(txnData[i][1]).trim();
         itemName = txnData[i][2];
@@ -502,7 +507,7 @@ function adminReturnItem(transactionId, adminNotes) {
     }
     
     if (txnRowIndex === -1) {
-      return { success: false, message: 'ไม่พบรายการ Transaction นี้ในระบบ' };
+      return { success: false, message: 'ไม่พบรหัสรายการ ' + transactionId + ' ในฐานข้อมูล' };
     }
     
     const now = new Date();
@@ -521,12 +526,15 @@ function adminReturnItem(transactionId, adminNotes) {
     if (itemIdToReturn) {
       const itemsData = sheetItems.getDataRange().getValues();
       for (let j = 1; j < itemsData.length; j++) {
-        if (String(itemsData[j][0]).trim() === itemIdToReturn) {
+        if (String(itemsData[j][0]).trim().toUpperCase() === itemIdToReturn.toUpperCase()) {
           sheetItems.getRange(j + 1, 4).setValue('Available');
           break;
         }
       }
     }
+    
+    // บังคับบันทึกการเปลี่ยนแปลงลง Google Sheets ทันที (ป้องกัน Delay/Cache)
+    SpreadsheetApp.flush();
     
     return {
       success: true,

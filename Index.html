@@ -588,6 +588,17 @@
     let systemSettings = {};
     let allTransactions = [];
 
+    // Helper ป้องกัน XSS และเครื่องหมายคำพูดทำให้ HTML หลุด
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     // Helper ป้องกันข้อผิดพลาดกรณี CDN Icon โหลดช้า
     function renderIcons() {
       try {
@@ -1156,26 +1167,27 @@
 
         return `
           <tr class="hover:bg-slate-50 transition">
-            <td class="py-3 px-3 font-mono font-bold text-primary-700">${t.transactionId}</td>
+            <td class="py-3 px-3 font-mono font-bold text-primary-700">${escapeHtml(t.transactionId)}</td>
             <td class="py-3 px-3">
-              <div class="font-medium text-slate-800">${t.itemName}</div>
-              <div class="text-[10px] text-slate-400">ID: ${t.itemId}</div>
+              <div class="font-medium text-slate-800">${escapeHtml(t.itemName)}</div>
+              <div class="text-[10px] text-slate-400">ID: ${escapeHtml(t.itemId)}</div>
             </td>
             <td class="py-3 px-3">
-              <div class="font-medium text-slate-800">${t.borrowerName}</div>
-              <div class="text-[10px] text-slate-500">${t.department} | ${t.borrowerEmail}</div>
+              <div class="font-medium text-slate-800">${escapeHtml(t.borrowerName)}</div>
+              <div class="text-[10px] text-slate-500">${escapeHtml(t.department)} | ${escapeHtml(t.borrowerEmail)}</div>
             </td>
-            <td class="py-3 px-3 text-slate-600">${t.borrowType}</td>
+            <td class="py-3 px-3 text-slate-600">${escapeHtml(t.borrowType)}</td>
             <td class="py-3 px-3 text-slate-600">${t.borrowDate}</td>
             <td class="py-3 px-3 font-medium ${t.status === 'Overdue' ? 'text-rose-600' : 'text-slate-800'}">${t.expectedReturnDate}</td>
             <td class="py-3 px-3">${badge}</td>
             <td class="py-3 px-3 text-center">
               ${isReturnable ? `
                 <button 
-                  onclick="openReturnModal('${t.transactionId}', '${t.itemName}')" 
+                  type="button"
+                  onclick="openReturnModal('${t.transactionId}')" 
                   class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium rounded-lg text-[11px] border border-emerald-200 transition flex items-center space-x-1 mx-auto"
                 >
-                  <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                  <i class="fa-solid fa-check mr-1"></i>
                   <span>รับคืน</span>
                 </button>
               ` : `
@@ -1190,55 +1202,94 @@
     }
 
     /**
-     * คอนเฟิร์มการส่งคืนอุปกรณ์ (Return Action)
+     * คอนเฟิร์มการส่งคืนอุปกรณ์ (Return Action) ผ่าน SweetAlert2
      */
-    function openReturnModal(txnId, itemName) {
-      document.getElementById('returnTxnId').value = txnId;
-      document.getElementById('returnModalSub').textContent = `รหัส: ${txnId} | อุปกรณ์: ${itemName}`;
-      document.getElementById('returnAdminNotes').value = '';
-      document.getElementById('returnModal').classList.remove('hidden');
-    }
-
-    function closeReturnModal() {
-      document.getElementById('returnModal').classList.add('hidden');
-    }
-
-    function confirmReturnAction() {
-      const txnId = document.getElementById('returnTxnId').value;
-      const notes = document.getElementById('returnAdminNotes').value.trim();
-
-      if (typeof google === 'undefined' || !google.script) {
-        closeReturnModal();
-        Swal.fire('สำเร็จ', `(Mock) บันทึกการส่งคืน ${txnId} เรียบร้อยแล้ว`, 'success');
-        const t = allTransactions.find(x => x.transactionId === txnId);
-        if (t) {
-          t.status = 'Returned';
-          t.actualReturnDate = '2026-11-04 16:50';
-        }
-        filterAdminTxn();
-        return;
-      }
+    function openReturnModal(txnId) {
+      const txn = allTransactions.find(x => x.transactionId === txnId);
+      const itemName = txn ? txn.itemName : '';
+      const borrower = txn ? txn.borrowerName : '-';
+      const dept = txn ? txn.department : '';
 
       Swal.fire({
+        title: 'ยืนยันการรับคืนอุปกรณ์',
+        html: `
+          <div style="text-align: left; font-size: 13px; color: #334155; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e2e8f0; line-height: 1.6;">
+            <div><strong>รหัสรายการ:</strong> <span style="font-family: monospace; color: #2563eb;">${escapeHtml(txnId)}</span></div>
+            <div><strong>อุปกรณ์:</strong> ${escapeHtml(itemName)}</div>
+            <div><strong>ผู้ยืม:</strong> ${escapeHtml(borrower)} (${escapeHtml(dept)})</div>
+          </div>
+          <div style="text-align: left;">
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">บันทึกสภาพอุปกรณ์ / หมายเหตุ (ถ้ามี):</label>
+            <textarea id="swalReturnNotes" rows="2" style="width: 100%; font-size: 13px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;" placeholder="เช่น ตรวจสอบแล้ว อุปกรณ์และสายชาร์จครบถ้วน สภาพปกติ"></textarea>
+          </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยันรับคืน',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#059669', // Emerald 600
+        cancelButtonColor: '#64748b',  // Slate 500
+        focusConfirm: false,
+        preConfirm: () => {
+          const notesInput = document.getElementById('swalReturnNotes');
+          return notesInput ? notesInput.value.trim() : '';
+        }
+      }).then((result) => {
+        if (result.isConfirmed) {
+          executeReturnItem(txnId, result.value || '');
+        }
+      });
+    }
+
+    function executeReturnItem(txnId, notes) {
+      Swal.fire({
         title: 'กำลังบันทึกการส่งคืน...',
+        text: 'กรุณารอสักครู่ ระบบกำลังอัปเดตสถานะใน Google Sheets',
         didOpen: () => Swal.showLoading(),
         allowOutsideClick: false
       });
 
+      if (typeof google === 'undefined' || !google.script) {
+        setTimeout(() => {
+          Swal.fire('สำเร็จ', `(Mock) บันทึกการส่งคืน ${txnId} เรียบร้อยแล้ว`, 'success');
+          const t = allTransactions.find(x => x.transactionId === txnId);
+          if (t) {
+            t.status = 'Returned';
+            t.actualReturnDate = new Date().toLocaleString('th-TH');
+          }
+          filterAdminTxn();
+        }, 500);
+        return;
+      }
+
       google.script.run
         .withSuccessHandler(res => {
-          closeReturnModal();
-          if (res.success) {
-            Swal.fire('สำเร็จ', res.message, 'success');
-            // รีเฟรชข้อมูลทั้งสองฝั่ง
+          if (res && res.success) {
+            Swal.fire({
+              icon: 'success',
+              title: 'รับคืนสำเร็จ!',
+              text: res.message,
+              confirmButtonColor: '#059669'
+            });
+
+            // ปรับสถานะในหน้าตาราง Admin ให้เปลี่ยนเป็น "คืนแล้ว" ทันที (Optimistic UI)
+            const t = allTransactions.find(x => x.transactionId === txnId);
+            if (t) {
+              t.status = 'Returned';
+              t.actualReturnDate = 'เพิ่งส่งคืน';
+            }
+            filterAdminTxn();
+
+            // รีเฟรชข้อมูลทั้งสองฝั่งจากเซิร์ฟเวอร์
             loadInitialData();
             refreshAdminData();
           } else {
-            Swal.fire('ผิดพลาด', res.message, 'error');
+            Swal.fire('เกิดข้อผิดพลาด', (res && res.message) || 'ไม่สามารถบันทึกการรับคืนได้', 'error');
           }
         })
         .withFailureHandler(err => {
-          Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+          console.error('adminReturnItem error:', err);
+          Swal.fire('เกิดข้อผิดพลาด', err.message || 'การเชื่อมต่อขัดข้อง กรุณาลองใหม่อีกครั้ง', 'error');
         })
         .adminReturnItem(txnId, notes);
     }
@@ -1254,10 +1305,10 @@
             <td class="py-2.5 px-3">
               <img src="${item.imageUrl || 'https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?auto=format&fit=crop&w=600&q=80'}" class="w-10 h-10 rounded-lg object-cover bg-slate-100 border">
             </td>
-            <td class="py-2.5 px-3 font-mono font-bold text-slate-700">${item.itemId}</td>
-            <td class="py-2.5 px-3 font-medium text-slate-800">${item.itemName}</td>
-            <td class="py-2.5 px-3 text-slate-600">${item.category}</td>
-            <td class="py-2.5 px-3 text-slate-600">${item.serialNo || '-'}</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-slate-700">${escapeHtml(item.itemId)}</td>
+            <td class="py-2.5 px-3 font-medium text-slate-800">${escapeHtml(item.itemName)}</td>
+            <td class="py-2.5 px-3 text-slate-600">${escapeHtml(item.category)}</td>
+            <td class="py-2.5 px-3 text-slate-600">${escapeHtml(item.serialNo || '-')}</td>
             <td class="py-2.5 px-3">
               <select onchange="updateItemStatusDirect('${item.itemId}', this.value)" class="text-[11px] border border-slate-300 rounded px-2 py-1 font-medium ${item.status === 'Available' ? 'text-emerald-700 bg-emerald-50' : (item.status === 'Borrowed' ? 'text-amber-700 bg-amber-50' : 'text-rose-700 bg-rose-50')}">
                 <option value="Available" ${item.status === 'Available' ? 'selected' : ''}>Available</option>
@@ -1265,16 +1316,23 @@
                 <option value="Maintenance" ${item.status === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
               </select>
             </td>
-            <td class="py-2.5 px-3 text-slate-500 max-w-[150px] truncate">${item.remarks || '-'}</td>
+            <td class="py-2.5 px-3 text-slate-500 max-w-[150px] truncate">${escapeHtml(item.remarks || '-')}</td>
             <td class="py-2.5 px-3 text-center">
-              <button onclick='editItemDirect(${JSON.stringify(item)})' class="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-slate-100 rounded-lg" title="แก้ไข">
-                <i data-lucide="edit-3" class="w-4 h-4"></i>
+              <button onclick="editItemById('${item.itemId}')" class="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-slate-100 rounded-lg" title="แก้ไข">
+                <i class="fa-solid fa-pen-to-square"></i>
               </button>
             </td>
           </tr>
         `;
       }).join('');
       renderIcons();
+    }
+
+    function editItemById(itemId) {
+      const item = allItems.find(i => i.itemId === itemId);
+      if (item) {
+        openItemModal(true, item);
+      }
     }
 
     function updateItemStatusDirect(itemId, newStatus) {
