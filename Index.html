@@ -584,12 +584,10 @@
       console.error('Global JS Error:', msg, 'line:', lineNo, error);
       const grid = document.getElementById('itemsGrid');
       if (grid) {
-        grid.innerHTML = `
-          <div class="col-span-full py-8 px-6 text-center bg-rose-50 rounded-2xl border border-rose-200 text-rose-700">
-            <h3 class="font-bold text-sm mb-1">เกิดข้อผิดพลาดของสคริปต์หน้าเว็บ</h3>
-            <p class="text-xs text-rose-600 font-mono mb-2">${msg} (บรรทัดที่ ${lineNo})</p>
-          </div>
-        `;
+        grid.innerHTML = "<div class=\"col-span-full py-8 px-6 text-center bg-rose-50 rounded-2xl border border-rose-200 text-rose-700\">" +
+            "<h3 class=\"font-bold text-sm mb-1\">เกิดข้อผิดพลาดของสคริปต์หน้าเว็บ</h3>" +
+            "<p class=\"text-xs text-rose-600 font-mono mb-2\">" + escapeHtml(msg) + " (บรรทัดที่ " + lineNo + ")</p>" +
+          "</div>";
       }
       return false;
     };
@@ -726,18 +724,16 @@
       const timeoutTimer = setTimeout(() => {
         if (isDone) return;
         console.warn('getInitialData timed out');
-        document.getElementById('itemsGrid').innerHTML = `
-          <div class="col-span-full py-10 px-6 text-center bg-amber-50 rounded-2xl border border-amber-200 text-amber-800">
-            <i class="fa-solid fa-triangle-exclamation text-3xl text-amber-500 mb-2"></i>
-            <h3 class="font-bold text-base mb-1">การโหลดข้อมูลใช้เวลานานผิดปกติ</h3>
-            <p class="text-xs text-amber-700 mb-4 max-w-md mx-auto leading-relaxed">
-              หากเปิดผ่านลิงก์ <code>/exec</code> อาจเป็นเพราะใน Apps Script ยังไม่ได้กดอัปเดต <strong>"เวอร์ชันใหม่ (New version)"</strong> ในเมนูจัดการการทำให้ใช้งานได้ หรือเกิดจากเบราว์เซอร์มีหลายบัญชี Google ขัดแย้งกัน
-            </p>
-            <button onclick="location.reload()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-medium transition shadow-sm">
-              <i class="fa-solid fa-rotate-right mr-1"></i> ลองใหม่อีกครั้ง
-            </button>
-          </div>
-        `;
+        document.getElementById('itemsGrid').innerHTML = "<div class=\"col-span-full py-10 px-6 text-center bg-amber-50 rounded-2xl border border-amber-200 text-amber-800\">" +
+            "<i class=\"fa-solid fa-triangle-exclamation text-3xl text-amber-500 mb-2\"></i>" +
+            "<h3 class=\"font-bold text-base mb-1\">การโหลดข้อมูลใช้เวลานานผิดปกติ</h3>" +
+            "<p class=\"text-xs text-amber-700 mb-4 max-w-md mx-auto leading-relaxed\">" +
+              "หากเปิดผ่านลิงก์ <code>/exec</code> อาจเป็นเพราะใน Apps Script ยังไม่ได้กดอัปเดต <strong>\"เวอร์ชันใหม่ (New version)\"</strong> ในเมนูจัดการการทำให้ใช้งานได้ หรือเกิดจากเบราว์เซอร์มีหลายบัญชี Google ขัดแย้งกัน" +
+            "</p>" +
+            "<button onclick=\"location.reload()\" class=\"px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-medium transition shadow-sm\">" +
+              "<i class=\"fa-solid fa-rotate-right mr-1\"></i> ลองใหม่อีกครั้ง" +
+            "</button>" +
+          "</div>";
       }, 7000);
 
       google.script.run
@@ -751,18 +747,16 @@
           clearTimeout(timeoutTimer);
           console.error('getInitialData error:', err);
           document.getElementById('userEmailDisplay').textContent = 'Error';
-          document.getElementById('itemsGrid').innerHTML = `
-            <div class="col-span-full py-10 px-6 text-center bg-rose-50 rounded-2xl border border-rose-200 text-rose-700">
-              <i data-lucide="alert-octagon" class="w-10 h-10 mx-auto mb-2 text-rose-500"></i>
-              <h3 class="font-bold text-base mb-1">ไม่สามารถโหลดข้อมูลจากชีตได้</h3>
-              <p class="text-xs text-rose-600 mb-4 max-w-md mx-auto leading-relaxed">
-                ${err.message || 'กรุณาตรวจสอบว่าได้กดยืนยันสิทธิ์ (Authorization) ในหน้า Apps Script แล้วหรือไม่'}
-              </p>
-              <button onclick="loadInitialData()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium transition shadow-sm">
-                ลองใหม่อีกครั้ง (Retry)
-              </button>
-            </div>
-          `;
+          document.getElementById('itemsGrid').innerHTML = "<div class=\"col-span-full py-10 px-6 text-center bg-rose-50 rounded-2xl border border-rose-200 text-rose-700\">" +
+              "<i class=\"fa-solid fa-circle-exclamation text-3xl text-rose-500 mb-2\"></i>" +
+              "<h3 class=\"font-bold text-base mb-1\">ไม่สามารถโหลดข้อมูลจากชีตได้</h3>" +
+              "<p class=\"text-xs text-rose-600 mb-4 max-w-md mx-auto leading-relaxed\">" +
+                escapeHtml(err.message || "กรุณาตรวจสอบว่าได้กดยืนยันสิทธิ์ (Authorization) ในหน้า Apps Script แล้วหรือไม่") +
+              "</p>" +
+              "<button onclick=\"loadInitialData()\" class=\"px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium transition shadow-sm\">" +
+                "ลองใหม่อีกครั้ง (Retry)" +
+              "</button>" +
+            "</div>";
           renderIcons();
         })
         .getInitialData();
@@ -793,15 +787,11 @@
     function renderCategoryPills(categories) {
       const container = document.getElementById('categoryPillsContainer');
       // เก็บปุ่ม ALL ไว้
-      container.innerHTML = `
-        <button onclick="selectCategory('ALL')" id="pill-ALL" class="category-pill active px-3.5 py-1.5 rounded-full font-medium transition whitespace-nowrap bg-slate-900 text-white">
-          ทั้งหมด
-        </button>
-      `;
+      container.innerHTML = "<button onclick=\"selectCategory('ALL')\" id=\"pill-ALL\" class=\"category-pill active px-3.5 py-1.5 rounded-full font-medium transition whitespace-nowrap bg-slate-900 text-white\">ทั้งหมด</button>";
 
       categories.forEach(cat => {
         const btn = document.createElement('button');
-        btn.id = `pill-${encodeURIComponent(cat)}`;
+        btn.id = 'pill-' + encodeURIComponent(cat);
         btn.className = 'category-pill px-3.5 py-1.5 rounded-full font-medium transition whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200';
         btn.textContent = cat;
         btn.onclick = () => selectCategory(cat);
@@ -814,7 +804,7 @@
       document.querySelectorAll('.category-pill').forEach(el => {
         el.className = 'category-pill px-3.5 py-1.5 rounded-full font-medium transition whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200';
       });
-      const activeEl = document.getElementById(`pill-${encodeURIComponent(cat)}`) || document.getElementById('pill-ALL');
+      const activeEl = document.getElementById('pill-' + encodeURIComponent(cat)) || document.getElementById('pill-ALL');
       if (activeEl) {
         activeEl.className = 'category-pill active px-3.5 py-1.5 rounded-full font-medium transition whitespace-nowrap bg-slate-900 text-white';
       }
@@ -864,13 +854,11 @@
     function renderItemsGrid(items) {
       const grid = document.getElementById('itemsGrid');
       if (items.length === 0) {
-        grid.innerHTML = `
-          <div class="col-span-full py-16 text-center text-slate-400">
-            <i data-lucide="package-search" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
-            <p class="text-sm font-medium">ไม่พบอุปกรณ์ที่ตรงกับเงื่อนไขการค้นหา</p>
-            <p class="text-xs mt-1">ลองเปลี่ยนคำค้นหา หรือกดล้างตัวกรอง</p>
-          </div>
-        `;
+        grid.innerHTML = "<div class=\"col-span-full py-16 text-center text-slate-400\">" +
+            "<i class=\"fa-solid fa-box-open text-4xl mx-auto mb-2 opacity-50\"></i>" +
+            "<p class=\"text-sm font-medium\">ไม่พบอุปกรณ์ที่ตรงกับเงื่อนไขการค้นหา</p>" +
+            "<p class=\"text-xs mt-1\">ลองเปลี่ยนคำค้นหา หรือกดล้างตัวกรอง</p>" +
+          "</div>";
         renderIcons();
         return;
       }
@@ -881,14 +869,14 @@
         
         let statusBadge = '';
         if (isAvailable) {
-          statusBadge = `<span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span>พร้อมใช้งาน</span></span>`;
+          statusBadge = '<span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span>พร้อมใช้งาน</span></span>';
         } else if (isBorrowed) {
-          statusBadge = `<span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span>กำลังถูกยืม</span></span>`;
+          statusBadge = '<span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span>กำลังถูกยืม</span></span>';
         } else {
-          statusBadge = `<span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span><span>ซ่อมบำรุง</span></span>`;
+          statusBadge = '<span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span><span>ซ่อมบำรุง</span></span>';
         }
 
-        const fallbackImg = `https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?auto=format&fit=crop&w=600&q=80`;
+        const fallbackImg = 'https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?auto=format&fit=crop&w=600&q=80';
         const itemImg = item.imageUrl ? item.imageUrl : fallbackImg;
 
         let remarksHtml = '';
@@ -904,48 +892,32 @@
           actionButtonHtml = '<button type="button" disabled class="w-full py-2 px-3 bg-slate-100 text-slate-400 rounded-xl text-xs font-medium cursor-not-allowed flex items-center justify-center space-x-1.5"><i class="fa-solid fa-lock mr-1"></i><span>' + disabledText + '</span></button>';
         }
 
-        return `
-          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group">
-            <!-- Card Image -->
-            <div class="relative h-44 bg-slate-100 overflow-hidden">
-              <img 
-                src="${itemImg}" 
-                alt="${escapeHtml(item.itemName)}" 
-                class="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
-                onerror="this.src='${fallbackImg}'"
-              >
-              <div class="absolute top-3 left-3">
-                <span class="text-[10px] font-semibold bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-slate-700 shadow-sm border border-slate-200">
-                  ${escapeHtml(item.itemId)}
-                </span>
-              </div>
-              <div class="absolute top-3 right-3">
-                ${statusBadge}
-              </div>
-            </div>
-
-            <!-- Card Content -->
-            <div class="p-4 flex-1 flex flex-col justify-between">
-              <div>
-                <p class="text-[11px] font-medium text-primary-600 mb-1">${escapeHtml(item.category)}</p>
-                <h3 class="font-bold text-slate-800 text-sm line-clamp-1 mb-1.5" title="${escapeHtml(item.itemName)}">
-                  ${escapeHtml(item.itemName)}
-                </h3>
-                <p class="text-[11px] text-slate-500 flex items-center space-x-1 mb-2">
-                  <i class="fa-solid fa-hashtag text-[11px]"></i>
-                  <span>Serial: ${escapeHtml(item.serialNo || 'ไม่มีระบุ')}</span>
-                </p>
-                ${remarksHtml}
-              </div>
-
-              <!-- Button Action -->
-              <div class="pt-3 border-t border-slate-100 mt-2">
-                ${actionButtonHtml}
-              </div>
-
-            </div>
-          </div>
-        `;
+        return [
+          '<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group">',
+            '<!-- Card Image -->',
+            '<div class="relative h-44 bg-slate-100 overflow-hidden">',
+              '<img src="' + itemImg + '" alt="' + escapeHtml(item.itemName) + '" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.src=\'' + fallbackImg + '\'">',
+              '<div class="absolute top-3 left-3">',
+                '<span class="text-[10px] font-semibold bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-slate-700 shadow-sm border border-slate-200">' + escapeHtml(item.itemId) + '</span>',
+              '</div>',
+              '<div class="absolute top-3 right-3">' + statusBadge + '</div>',
+            '</div>',
+            '<!-- Card Content -->',
+            '<div class="p-4 flex-1 flex flex-col justify-between">',
+              '<div>',
+                '<p class="text-[11px] font-medium text-primary-600 mb-1">' + escapeHtml(item.category) + '</p>',
+                '<h3 class="font-bold text-slate-800 text-sm line-clamp-1 mb-1.5" title="' + escapeHtml(item.itemName) + '">' + escapeHtml(item.itemName) + '</h3>',
+                '<p class="text-[11px] text-slate-500 flex items-center space-x-1 mb-2">',
+                  '<i class="fa-solid fa-hashtag text-[11px]"></i>',
+                  '<span>Serial: ' + escapeHtml(item.serialNo || 'ไม่มีระบุ') + '</span>',
+                '</p>',
+                remarksHtml,
+              '</div>',
+              '<!-- Button Action -->',
+              '<div class="pt-3 border-t border-slate-100 mt-2">' + actionButtonHtml + '</div>',
+            '</div>',
+          '</div>'
+        ].join('');
       }).join('');
 
       renderIcons();
@@ -961,7 +933,7 @@
       document.getElementById('borrowItemId').value = item.itemId;
       document.getElementById('modalItemName').textContent = item.itemName;
       document.getElementById('modalItemCategory').textContent = item.category;
-      document.getElementById('modalItemSerial').textContent = `Serial No: ${item.serialNo || '-'}`;
+      document.getElementById('modalItemSerial').textContent = 'Serial No: ' + (item.serialNo || '-');
       document.getElementById('modalItemImg').src = item.imageUrl || 'https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?auto=format&fit=crop&w=600&q=80';
 
       setDefaultDateTimes();
@@ -1018,10 +990,8 @@
           Swal.fire({
             icon: 'success',
             title: 'ทำรายการสำเร็จ!',
-            html: `
-              <p class="text-sm">รหัสธุรกรรมของคุณคือ: <strong class="text-primary-600 font-mono">TXN-MOCK-9999</strong></p>
-              <p class="text-xs text-slate-500 mt-2">ระบบได้ส่งอีเมลยืนยันไปยัง <strong>${formData.borrowerEmail}</strong> เรียบร้อยแล้ว</p>
-            `,
+            html: "<p class=\"text-sm\">รหัสธุรกรรมของคุณคือ: <strong class=\"text-primary-600 font-mono\">TXN-MOCK-9999</strong></p>" +
+            "<p class=\"text-xs text-slate-500 mt-2\">ระบบได้ส่งอีเมลยืนยันไปยัง <strong>" + escapeHtml(formData.borrowerEmail) + "</strong> เรียบร้อยแล้ว</p>",
             confirmButtonText: 'ตกลง'
           });
 
@@ -1044,14 +1014,12 @@
             Swal.fire({
               icon: 'success',
               title: 'ขอยืมสำเร็จเรียบร้อย!',
-              html: `
-                <div class="space-y-3 text-left bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
-                  <div><strong>เลขอ้างอิง Transaction ID:</strong> <span class="font-mono text-primary-600 font-bold">${res.transactionId}</span></div>
-                  <div><strong>ผู้ยืม:</strong> ${formData.borrowerName} (${formData.department})</div>
-                  <div><strong>กำหนดส่งคืน:</strong> ${formData.expectedReturnDate}</div>
-                </div>
-                <p class="text-xs text-slate-500 mt-3">ระบบได้ส่งอีเมลยืนยันรายการ พร้อมคำแนะนำการใช้งานไปยัง <strong class="text-slate-800">${formData.borrowerEmail}</strong> เรียบร้อยแล้ว</p>
-              `,
+              html: "<div class=\"space-y-3 text-left bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs\">" +
+                  "<div><strong>เลขอ้างอิง Transaction ID:</strong> <span class=\"font-mono text-primary-600 font-bold\">" + escapeHtml(res.transactionId) + "</span></div>" +
+                  "<div><strong>ผู้ยืม:</strong> " + escapeHtml(formData.borrowerName) + " (" + escapeHtml(formData.department) + ")</div>" +
+                  "<div><strong>กำหนดส่งคืน:</strong> " + escapeHtml(formData.expectedReturnDate) + "</div>" +
+                "</div>" +
+                "<p class=\"text-xs text-slate-500 mt-3\">ระบบได้ส่งอีเมลยืนยันรายการ พร้อมคำแนะนำการใช้งานไปยัง <strong class=\"text-slate-800\">" + escapeHtml(formData.borrowerEmail) + "</strong> เรียบร้อยแล้ว</p>",
               confirmButtonText: 'รับทราบและปิดหน้านี้',
               confirmButtonColor: '#2563eb'
             });
@@ -1191,7 +1159,7 @@
     function renderAdminTransactionsTable(txns) {
       const tbody = document.getElementById('txnTableBody');
       if (txns.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">ไม่พบรายการประวัติการยืม-คืน</td></tr>`;
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-slate-400">ไม่พบรายการประวัติการยืม-คืน</td></tr>';
         return;
       }
 
@@ -1213,26 +1181,24 @@
           actionCellHtml = '<span class="text-[10px] text-slate-400">คืนเมื่อ: ' + escapeHtml(t.actualReturnDate) + '</span>';
         }
 
-        return `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="py-3 px-3 font-mono font-bold text-primary-700">${escapeHtml(t.transactionId)}</td>
-            <td class="py-3 px-3">
-              <div class="font-medium text-slate-800">${escapeHtml(t.itemName)}</div>
-              <div class="text-[10px] text-slate-400">ID: ${escapeHtml(t.itemId)}</div>
-            </td>
-            <td class="py-3 px-3">
-              <div class="font-medium text-slate-800">${escapeHtml(t.borrowerName)}</div>
-              <div class="text-[10px] text-slate-500">${escapeHtml(t.department)} | ${escapeHtml(t.borrowerEmail)}</div>
-            </td>
-            <td class="py-3 px-3 text-slate-600">${escapeHtml(t.borrowType)}</td>
-            <td class="py-3 px-3 text-slate-600">${t.borrowDate}</td>
-            <td class="py-3 px-3 font-medium ${t.status === 'Overdue' ? 'text-rose-600' : 'text-slate-800'}">${t.expectedReturnDate}</td>
-            <td class="py-3 px-3">${badge}</td>
-            <td class="py-3 px-3 text-center">
-              ${actionCellHtml}
-            </td>
-          </tr>
-        `;
+        return [
+          '<tr class="hover:bg-slate-50 transition">',
+            '<td class="py-3 px-3 font-mono font-bold text-primary-700">' + escapeHtml(t.transactionId) + '</td>',
+            '<td class="py-3 px-3">',
+              '<div class="font-medium text-slate-800">' + escapeHtml(t.itemName) + '</div>',
+              '<div class="text-[10px] text-slate-400">ID: ' + escapeHtml(t.itemId) + '</div>',
+            '</td>',
+            '<td class="py-3 px-3">',
+              '<div class="font-medium text-slate-800">' + escapeHtml(t.borrowerName) + '</div>',
+              '<div class="text-[10px] text-slate-500">' + escapeHtml(t.department) + ' | ' + escapeHtml(t.borrowerEmail) + '</div>',
+            '</td>',
+            '<td class="py-3 px-3 text-slate-600">' + escapeHtml(t.borrowType) + '</td>',
+            '<td class="py-3 px-3 text-slate-600">' + escapeHtml(t.borrowDate) + '</td>',
+            '<td class="py-3 px-3 font-medium ' + (t.status === 'Overdue' ? 'text-rose-600' : 'text-slate-800') + '">' + escapeHtml(t.expectedReturnDate) + '</td>',
+            '<td class="py-3 px-3">' + badge + '</td>',
+            '<td class="py-3 px-3 text-center">' + actionCellHtml + '</td>',
+          '</tr>'
+        ].join('');
       }).join('');
 
       renderIcons();
@@ -1249,17 +1215,17 @@
 
       Swal.fire({
         title: 'ยืนยันการรับคืนอุปกรณ์',
-        html: `
-          <div style="text-align: left; font-size: 13px; color: #334155; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e2e8f0; line-height: 1.6;">
-            <div><strong>รหัสรายการ:</strong> <span style="font-family: monospace; color: #2563eb;">${escapeHtml(txnId)}</span></div>
-            <div><strong>อุปกรณ์:</strong> ${escapeHtml(itemName)}</div>
-            <div><strong>ผู้ยืม:</strong> ${escapeHtml(borrower)} (${escapeHtml(dept)})</div>
-          </div>
-          <div style="text-align: left;">
-            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">บันทึกสภาพอุปกรณ์ / หมายเหตุ (ถ้ามี):</label>
-            <textarea id="swalReturnNotes" rows="2" style="width: 100%; font-size: 13px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;" placeholder="เช่น ตรวจสอบแล้ว อุปกรณ์และสายชาร์จครบถ้วน สภาพปกติ"></textarea>
-          </div>
-        `,
+        html: [
+          '<div style="text-align: left; font-size: 13px; color: #334155; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e2e8f0; line-height: 1.6;">',
+            '<div><strong>รหัสรายการ:</strong> <span style="font-family: monospace; color: #2563eb;">' + escapeHtml(txnId) + '</span></div>',
+            '<div><strong>อุปกรณ์:</strong> ' + escapeHtml(itemName) + '</div>',
+            '<div><strong>ผู้ยืม:</strong> ' + escapeHtml(borrower) + ' (' + escapeHtml(dept) + ')</div>',
+          '</div>',
+          '<div style="text-align: left;">',
+            '<label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">บันทึกสภาพอุปกรณ์ / หมายเหตุ (ถ้ามี):</label>',
+            '<textarea id="swalReturnNotes" rows="2" style="width: 100%; font-size: 13px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;" placeholder="เช่น ตรวจสอบแล้ว อุปกรณ์และสายชาร์จครบถ้วน สภาพปกติ"></textarea>',
+          '</div>'
+        ].join(''),
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'ยืนยันรับคืน',
@@ -1288,7 +1254,7 @@
 
       if (typeof google === 'undefined' || !google.script) {
         setTimeout(() => {
-          Swal.fire('สำเร็จ', `(Mock) บันทึกการส่งคืน ${txnId} เรียบร้อยแล้ว`, 'success');
+          Swal.fire('สำเร็จ', '(Mock) บันทึกการส่งคืน ' + txnId + ' เรียบร้อยแล้ว', 'success');
           const t = allTransactions.find(x => x.transactionId === txnId);
           if (t) {
             t.status = 'Returned';
@@ -1337,30 +1303,30 @@
     function renderAdminItemsTable() {
       const tbody = document.getElementById('adminItemTableBody');
       tbody.innerHTML = allItems.map(item => {
-        return `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="py-2.5 px-3">
-              <img src="${item.imageUrl || 'https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?auto=format&fit=crop&w=600&q=80'}" class="w-10 h-10 rounded-lg object-cover bg-slate-100 border">
-            </td>
-            <td class="py-2.5 px-3 font-mono font-bold text-slate-700">${escapeHtml(item.itemId)}</td>
-            <td class="py-2.5 px-3 font-medium text-slate-800">${escapeHtml(item.itemName)}</td>
-            <td class="py-2.5 px-3 text-slate-600">${escapeHtml(item.category)}</td>
-            <td class="py-2.5 px-3 text-slate-600">${escapeHtml(item.serialNo || '-')}</td>
-            <td class="py-2.5 px-3">
-              <select onchange="updateItemStatusDirect('${item.itemId}', this.value)" class="text-[11px] border border-slate-300 rounded px-2 py-1 font-medium ${item.status === 'Available' ? 'text-emerald-700 bg-emerald-50' : (item.status === 'Borrowed' ? 'text-amber-700 bg-amber-50' : 'text-rose-700 bg-rose-50')}">
-                <option value="Available" ${item.status === 'Available' ? 'selected' : ''}>Available</option>
-                <option value="Borrowed" ${item.status === 'Borrowed' ? 'selected' : ''}>Borrowed</option>
-                <option value="Maintenance" ${item.status === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
-              </select>
-            </td>
-            <td class="py-2.5 px-3 text-slate-500 max-w-[150px] truncate">${escapeHtml(item.remarks || '-')}</td>
-            <td class="py-2.5 px-3 text-center">
-              <button onclick="editItemById('${item.itemId}')" class="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-slate-100 rounded-lg" title="แก้ไข">
-                <i class="fa-solid fa-pen-to-square"></i>
-              </button>
-            </td>
-          </tr>
-        `;
+        return [
+          '<tr class="hover:bg-slate-50 transition">',
+            '<td class="py-2.5 px-3">',
+              '<img src="' + (item.imageUrl || 'https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?auto=format&fit=crop&w=600&q=80') + '" class="w-10 h-10 rounded-lg object-cover bg-slate-100 border">',
+            '</td>',
+            '<td class="py-2.5 px-3 font-mono font-bold text-slate-700">' + escapeHtml(item.itemId) + '</td>',
+            '<td class="py-2.5 px-3 font-medium text-slate-800">' + escapeHtml(item.itemName) + '</td>',
+            '<td class="py-2.5 px-3 text-slate-600">' + escapeHtml(item.category) + '</td>',
+            '<td class="py-2.5 px-3 text-slate-600">' + escapeHtml(item.serialNo || '-') + '</td>',
+            '<td class="py-2.5 px-3">',
+              '<select onchange="updateItemStatusDirect(\'' + escapeHtml(item.itemId) + '\', this.value)" class="text-[11px] border border-slate-300 rounded px-2 py-1 font-medium ' + (item.status === 'Available' ? 'text-emerald-700 bg-emerald-50' : (item.status === 'Borrowed' ? 'text-amber-700 bg-amber-50' : 'text-rose-700 bg-rose-50')) + '">',
+                '<option value="Available" ' + (item.status === 'Available' ? 'selected' : '') + '>Available</option>',
+                '<option value="Borrowed" ' + (item.status === 'Borrowed' ? 'selected' : '') + '>Borrowed</option>',
+                '<option value="Maintenance" ' + (item.status === 'Maintenance' ? 'selected' : '') + '>Maintenance</option>',
+              '</select>',
+            '</td>',
+            '<td class="py-2.5 px-3 text-slate-500 max-w-[150px] truncate">' + escapeHtml(item.remarks || '-') + '</td>',
+            '<td class="py-2.5 px-3 text-center">',
+              '<button onclick="editItemById(\'' + escapeHtml(item.itemId) + '\')" class="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-slate-100 rounded-lg" title="แก้ไข">',
+                '<i class="fa-solid fa-pen-to-square"></i>',
+              '</button>',
+            '</td>',
+          '</tr>'
+        ].join('');
       }).join('');
       renderIcons();
     }
@@ -1467,20 +1433,20 @@
      */
     function renderAdminSettings() {
       const grid = document.getElementById('settingsDisplayGrid');
-      grid.innerHTML = `
-        <div class="p-3 bg-slate-50 rounded-lg">
-          <span class="text-slate-400 block mb-1">ชื่อองค์กร / ฝ่ายดูแล:</span>
-          <span class="font-semibold text-slate-800">${systemSettings.organizationName || '-'}</span>
-        </div>
-        <div class="p-3 bg-slate-50 rounded-lg">
-          <span class="text-slate-400 block mb-1">แจ้งเตือนล่วงหน้าก่อนกำหนด:</span>
-          <span class="font-semibold text-slate-800">${systemSettings.reminderDaysBefore || '1'} วัน</span>
-        </div>
-        <div class="p-3 bg-slate-50 rounded-lg md:col-span-2">
-          <span class="text-slate-400 block mb-1">ข้อมูลติดต่อฝ่ายดูแล:</span>
-          <span class="font-semibold text-slate-800">${systemSettings.contactInfo || '-'}</span>
-        </div>
-      `;
+      grid.innerHTML = [
+        '<div class="p-3 bg-slate-50 rounded-lg">',
+          '<span class="text-slate-400 block mb-1">ชื่อองค์กร / ฝ่ายดูแล:</span>',
+          '<span class="font-semibold text-slate-800">' + escapeHtml(systemSettings.organizationName || '-') + '</span>',
+        '</div>',
+        '<div class="p-3 bg-slate-50 rounded-lg">',
+          '<span class="text-slate-400 block mb-1">แจ้งเตือนล่วงหน้าก่อนกำหนด:</span>',
+          '<span class="font-semibold text-slate-800">' + escapeHtml(systemSettings.reminderDaysBefore || '1') + ' วัน</span>',
+        '</div>',
+        '<div class="p-3 bg-slate-50 rounded-lg md:col-span-2">',
+          '<span class="text-slate-400 block mb-1">ข้อมูลติดต่อฝ่ายดูแล:</span>',
+          '<span class="font-semibold text-slate-800">' + escapeHtml(systemSettings.contactInfo || '-') + '</span>',
+        '</div>'
+      ].join('');
     }
 
     /**
